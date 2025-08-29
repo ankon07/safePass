@@ -32,11 +32,16 @@ contract EmploymentContract {
     }
     Payment[] public payments;
 
+    // Credential status tracking
+    mapping(string => string) public credentialStatuses;
+    mapping(string => address) public credentialIssuers;
+
     // Events
     event ContractSigned(address indexed worker, address indexed employer);
     event StatusChanged(ContractStatus newStatus);
     event PaymentRecorded(uint256 amount, uint256 timestamp);
     event DisputeRaised(address indexed worker);
+    event CredentialStatusUpdated(string indexed credentialId, string status, address indexed updatedBy);
 
     // Modifiers
     modifier onlyWorker() {
@@ -210,5 +215,42 @@ contract EmploymentContract {
         }
 
         return (amounts, timestamps);
+    }
+
+    /**
+     * @dev Updates the status of a credential
+     * @param credentialId The unique identifier of the credential
+     * @param newStatus The new status to set for the credential
+     */
+    function updateCredentialStatus(string memory credentialId, string memory newStatus) external onlyRegulator {
+        require(bytes(credentialId).length > 0, "Credential ID cannot be empty");
+        require(bytes(newStatus).length > 0, "Status cannot be empty");
+        
+        credentialStatuses[credentialId] = newStatus;
+        credentialIssuers[credentialId] = msg.sender;
+        
+        emit CredentialStatusUpdated(credentialId, newStatus, msg.sender);
+    }
+
+    /**
+     * @dev Gets the status of a credential
+     * @param credentialId The unique identifier of the credential
+     * @return credentialStatus The current status of the credential
+     * @return issuer The address of the credential issuer
+     */
+    function getCredential(string memory credentialId) external view returns (string memory credentialStatus, address issuer) {
+        return (credentialStatuses[credentialId], credentialIssuers[credentialId]);
+    }
+
+    /**
+     * @dev Gets credentials for a worker (placeholder - returns empty for now)
+     * @param workerDid The DID of the worker
+     * @return An empty array (to be implemented based on specific requirements)
+     */
+    function getWorkerCredentials(string memory workerDid) external view returns (string[] memory) {
+        // This is a placeholder implementation
+        // In a real system, you'd need to track which credentials belong to which worker
+        string[] memory emptyArray = new string[](0);
+        return emptyArray;
     }
 }

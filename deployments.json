@@ -1,0 +1,24 @@
+{
+  "besu_local": {
+    "network": "besu_local",
+    "chainId": 1337,
+    "contracts": {
+      "Anchor": "0x4261D524bc701dA4AC49339e5F8b299977045eA5",
+      "EmploymentContract": "0x5EB5888938e3fE7b334b1838B19C1e828c5148aA"
+    },
+    "deployer": "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73",
+    "gasUsed": "1425983",
+    "timestamp": 1756459591000
+  },
+  "ethereum_sepolia": {
+    "network": "ethereum_sepolia",
+    "chainId": 11155111,
+    "contracts": {
+      "Anchor": "0xDd6c20b9165931Ba3496A8D4c3e0847F2a536D70",
+      "EmploymentContract": "0xEA2a92D780D5912f49Ab5FBBeb744F5F71944AC2"
+    },
+    "deployer": "0x9Ce8aeEac24C5F10F8A9625360E69986C281DDE9",
+    "gasUsed": "1426421",
+    "timestamp": 1756457617880
+  }
+}

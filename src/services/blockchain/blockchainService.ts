@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 // Import contract artifacts
 import EmploymentContractArtifact from '../../../artifacts/contracts/EmploymentContract.sol/EmploymentContract.json';
 import EthereumDIDRegistryArtifact from '../../../artifacts/contracts/EthereumDIDRegistry.sol/EthereumDIDRegistry.json';
+import AnchorArtifact from '../../../artifacts/contracts/Anchor.sol/Anchor.json';
 
 interface ContractConfig {
   address: string;
@@ -222,22 +223,42 @@ class BlockchainService extends EventEmitter {
         throw new Error(`Event '${eventName}' not found in contract '${contractName}'. Available events: ${Object.keys(contract.filters || {}).join(', ')}`);
       }
       
-      // Get current block number to limit range
+      // Get current block number to validate range
       const currentBlock = await this.getCurrentBlockNumber();
+      console.log(`Current blockchain block: ${currentBlock}`);
       
-      // Limit the range to avoid RPC limits (max 1000 blocks)
-      let actualFromBlock = fromBlock;
-      let actualToBlock = toBlock;
+      // Convert and validate block parameters
+      let actualFromBlock = Math.max(0, Number(fromBlock));
+      let actualToBlock: number;
       
       if (toBlock === 'latest') {
         actualToBlock = currentBlock;
+      } else {
+        actualToBlock = Number(toBlock);
       }
       
-      const blockRange = Number(actualToBlock) - actualFromBlock;
-      if (blockRange > 1000) {
-        actualFromBlock = Number(actualToBlock) - 1000;
-        console.log(`Block range too large, limiting to last 1000 blocks: ${actualFromBlock} to ${actualToBlock}`);
+      // Validate block range against current blockchain state
+      if (actualFromBlock > currentBlock) {
+        throw new Error(`fromBlock (${actualFromBlock}) is greater than current block (${currentBlock}). Current blockchain only has ${currentBlock + 1} blocks.`);
       }
+      
+      if (actualToBlock > currentBlock) {
+        console.log(`toBlock (${actualToBlock}) is greater than current block (${currentBlock}), adjusting to current block`);
+        actualToBlock = currentBlock;
+      }
+      
+      if (actualFromBlock > actualToBlock) {
+        throw new Error(`fromBlock (${actualFromBlock}) cannot be greater than toBlock (${actualToBlock})`);
+      }
+      
+      // Limit the range to avoid RPC limits (max 1000 blocks)
+      const blockRange = actualToBlock - actualFromBlock;
+      if (blockRange > 1000) {
+        actualFromBlock = actualToBlock - 1000;
+        console.log(`Block range too large (${blockRange} blocks), limiting to last 1000 blocks: ${actualFromBlock} to ${actualToBlock}`);
+      }
+      
+      console.log(`Querying events from block ${actualFromBlock} to ${actualToBlock} (range: ${actualToBlock - actualFromBlock + 1} blocks)`);
       
       const filter = contract.filters[eventName]();
       const events = await contract.queryFilter(filter, actualFromBlock, actualToBlock);
@@ -246,6 +267,15 @@ class BlockchainService extends EventEmitter {
       return events;
     } catch (error) {
       console.error(`Error getting past events for ${contractName}.${eventName}:`, error);
+      
+      // Provide more helpful error messages
+      if (error instanceof Error) {
+        if (error.message.includes('invalid blockTag')) {
+          const currentBlock = await this.getCurrentBlockNumber().catch(() => 'unknown');
+          throw new Error(`Invalid block range. Current blockchain has ${currentBlock} blocks. Please use a valid range like fromBlock=0&toBlock=latest or fromBlock=0&toBlock=${currentBlock}`);
+        }
+      }
+      
       throw error;
     }
   }
@@ -290,6 +320,14 @@ class BlockchainService extends EventEmitter {
         this.registerContract('EthereumDIDRegistry', {
           address: process.env.DID_REGISTRY_ADDRESS,
           abi: EthereumDIDRegistryArtifact.abi
+        });
+      }
+
+      // Register Anchor contract if address is available
+      if (process.env.ANCHOR_CONTRACT_ADDRESS) {
+        this.registerContract('Anchor', {
+          address: process.env.ANCHOR_CONTRACT_ADDRESS,
+          abi: AnchorArtifact.abi
         });
       }
 

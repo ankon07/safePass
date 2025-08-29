@@ -171,6 +171,26 @@ router.get('/workers/:workerDid/credentials', ensureBlockchainReady, async (req,
 });
 
 /**
+ * Helper function to convert BigInt values to strings for JSON serialization
+ */
+const convertBigIntToString = (obj: any): any => {
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  } else if (Array.isArray(obj)) {
+    return obj.map(convertBigIntToString);
+  } else if (obj !== null && typeof obj === 'object') {
+    const converted: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        converted[key] = convertBigIntToString(obj[key]);
+      }
+    }
+    return converted;
+  }
+  return obj;
+};
+
+/**
  * Get past events from contracts
  */
 router.get('/events/:contractName/:eventName', ensureBlockchainReady, async (req, res) => {
@@ -191,9 +211,9 @@ router.get('/events/:contractName/:eventName', ensureBlockchainReady, async (req
       fromBlock,
       toBlock,
       events: events.map(event => ({
-        blockNumber: event.blockNumber,
+        blockNumber: convertBigIntToString(event.blockNumber),
         transactionHash: event.transactionHash,
-        args: event.args,
+        args: convertBigIntToString(event.args),
         topics: event.topics
       }))
     });
