@@ -34,7 +34,10 @@
     "anchor:deploy": "hardhat run scripts/deployAnchorToSepolia.js --network ethereum_sepolia",
     "anchor:run": "node scripts/anchorService.js",
     "anchor:test": "node scripts/anchorService.js --help",
-    "anchor:verify": "node scripts/verifyAnchoring.js"
+    "anchor:verify": "node scripts/verifyAnchoring.js",
+    "phase6:deploy": "node scripts/deployAgencyRegistry.js",
+    "phase6:test": "node test-phase6.js",
+    "phase6:setup": "psql -h $SUPABASE_HOST -U postgres -d postgres -f phase6-database-schema.sql"
   },
   "keywords": [],
   "author": "",
@@ -48,6 +51,7 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
+    "@types/node-cron": "^3.0.11",
     "dotenv": "^17.2.1",
     "hardhat": "^2.19.5",
     "ts-node-dev": "^2.0.0"
@@ -65,6 +69,7 @@
     "@veramo/kms-local": "^6.0.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
+    "circomlib": "^2.0.5",
     "cors": "^2.8.5",
     "ethers": "^6.15.0",
     "ethr-did-registry": "^1.3.0",
@@ -76,7 +81,9 @@
     "keccak256": "^1.0.6",
     "merkletreejs": "^0.5.2",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "reflect-metadata": "^0.2.2",
+    "snarkjs": "^0.7.5",
     "sqlite3": "^5.1.7",
     "typeorm": "^0.3.26"
   }

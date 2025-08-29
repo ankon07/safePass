@@ -6,6 +6,9 @@ import userRoutes from './api/users';
 import documentRoutes from './api/documents';
 import credentialRoutes from './api/credentials';
 import blockchainRoutes from './api/blockchain';
+import trustScoreRoutes from './api/trustScore';
+import zkpRoutes from './api/zkp';
+import { trustScoreService } from './services/trustScoreService';
 
 const app = express();
 
@@ -33,6 +36,8 @@ app.use('/api/users', userRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', credentialRoutes);
 app.use('/api/blockchain', blockchainRoutes);
+app.use('/api/trust-scores', trustScoreRoutes);
+app.use('/api/zkp', zkpRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -58,7 +63,13 @@ const startServer = async () => {
       console.log(`🚀 SafePass API Gateway running on port ${config.port}`);
       console.log(`📊 Health check: http://localhost:${config.port}/health`);
       console.log(`🔐 Auth endpoints: http://localhost:${config.port}/api/auth`);
+      console.log(`🔢 Trust Score endpoints: http://localhost:${config.port}/api/trust-scores`);
+      console.log(`🔐 ZKP endpoints: http://localhost:${config.port}/api/zkp`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+      
+      // Initialize trust score service
+      console.log('🎯 Initializing trust score calculator...');
+      trustScoreService.startTrustScoreCalculator();
     });
   } catch (error) {
     console.error('Failed to start server:', error);

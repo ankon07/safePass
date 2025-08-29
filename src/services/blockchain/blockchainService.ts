@@ -5,6 +5,7 @@ import { EventEmitter } from 'events';
 import EmploymentContractArtifact from '../../../artifacts/contracts/EmploymentContract.sol/EmploymentContract.json';
 import EthereumDIDRegistryArtifact from '../../../artifacts/contracts/EthereumDIDRegistry.sol/EthereumDIDRegistry.json';
 import AnchorArtifact from '../../../artifacts/contracts/Anchor.sol/Anchor.json';
+import AgencyRegistryArtifact from '../../../artifacts/contracts/AgencyRegistry.sol/AgencyRegistry.json';
 
 interface ContractConfig {
   address: string;
@@ -328,6 +329,14 @@ class BlockchainService extends EventEmitter {
         this.registerContract('Anchor', {
           address: process.env.ANCHOR_CONTRACT_ADDRESS,
           abi: AnchorArtifact.abi
+        });
+      }
+
+      // Register AgencyRegistry contract if address is available
+      if (process.env.AGENCY_REGISTRY_ADDRESS) {
+        this.registerContract('AgencyRegistry', {
+          address: process.env.AGENCY_REGISTRY_ADDRESS,
+          abi: AgencyRegistryArtifact.abi
         });
       }
 
