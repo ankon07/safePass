@@ -1,0 +1,20 @@
+{
+  "blockchain": {
+    "nodes": {
+      "generate": true,
+      "count": 1
+    }
+  },
+  "genesis": {
+    "config": {
+      "chainId": 1337,
+      "clique": {
+        "blockperiodseconds": 5,
+        "epochlength": 30000
+      }
+    },
+    "gasLimit": "0x8000000",
+    "difficulty": "0x1",
+    "coinbase": "0x0000000000000000000000000000000000000000"
+  }
+}

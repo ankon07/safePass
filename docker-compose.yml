@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  besu-node:
+    image: hyperledger/besu:latest
+    container_name: besu_node_1
+    ports:
+      - "8545:8545" # RPC-HTTP
+      - "8546:8546" # RPC-WS
+      - "30303:30303" # P2P
+    volumes:
+      - ./besu-data:/opt/besu/data
+      - ./besu-config/network-files/genesis.json:/opt/besu/genesis.json
+      - ./besu-config/network-files/keys:/opt/besu/keys
+    command: >
+      --genesis-file=/opt/besu/genesis.json
+      --data-path=/opt/besu/data
+      --node-private-key-file=/opt/besu/keys/key
+      --rpc-http-enabled
+      --rpc-http-api=ETH,NET,CLIQUE,ADMIN
+      --host-allowlist="*"
+      --rpc-http-cors-origins="*"
+      --min-gas-price=0
+      --discovery-enabled=false
+
+  ipfs-node:
+    image: ipfs/kubo:latest
+    container_name: ipfs_node_1
+    ports:
+      - "5001:5001" # API Port
+      - "8081:8080" # Gateway Port (changed to avoid conflict)
+    volumes:
+      - ./ipfs-data:/data/ipfs

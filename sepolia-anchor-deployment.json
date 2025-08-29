@@ -1,0 +1,8 @@
+{
+  "network": "ethereum_sepolia",
+  "contractName": "Anchor",
+  "contractAddress": "0x7Fe9E3b9c1E96B96A7eDbF4b7Aa4552e059B0DbC",
+  "deploymentTime": "2025-08-28T18:35:52.215Z",
+  "deployer": "0x9Ce8aeEac24C5F10F8A9625360E69986C281DDE9",
+  "transactionHash": "0xdce0e4a94894bac14356eeec2eb07ae023b7fab008fadce2b3d1f1438a9f5528"
+}

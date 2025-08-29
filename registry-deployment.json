@@ -1,0 +1,8 @@
+{
+  "registryAddress": "0xa50a51c09a5c451C52BB714527E1974b686D8e77",
+  "network": "besu_local",
+  "deployer": "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73",
+  "blockNumber": 14594,
+  "transactionHash": "0x637cb47a87684c64098306b2d2d5855056a2c8742b6fd401b9c04129645d1454",
+  "deployedAt": "2025-08-28T18:05:34.529Z"
+}
