@@ -19,8 +19,22 @@ contract AgencyRegistry is Ownable {
         uint256 lastScoreUpdate;
     }
 
+    // Insurance bond structure for Pillar 2 compliance
+    struct InsuranceBond {
+        string policyNumber;
+        uint256 coverageAmount;
+        uint256 expiryDate;
+        address insuranceProvider;
+        bool isActive;
+        string credentialJWT; // Verifiable Credential for the bond
+        uint256 lastUpdated;
+    }
+
     // Mapping from agency address to agency data
     mapping(address => Agency) public agencies;
+    
+    // Mapping from agency address to insurance bond
+    mapping(address => InsuranceBond) public agencyInsurance;
     
     // Array to keep track of all registered agencies
     address[] public agencyList;
@@ -47,6 +61,19 @@ contract AgencyRegistry is Ownable {
         address indexed agencyAddress,
         string newName,
         string newDid
+    );
+
+    event InsuranceBondUpdated(
+        address indexed agencyAddress,
+        string policyNumber,
+        uint256 coverageAmount,
+        uint256 expiryDate,
+        address indexed insuranceProvider
+    );
+
+    event InsuranceBondExpired(
+        address indexed agencyAddress,
+        string policyNumber
     );
 
     // Modifiers
@@ -289,5 +316,182 @@ contract AgencyRegistry is Ownable {
         }
         
         return (topAgencies, scores);
+    }
+
+    /**
+     * @dev Update insurance bond for an agency (Owner only)
+     * @param _agencyAddress The agency's address
+     * @param _policyNumber Insurance policy number
+     * @param _coverageAmount Coverage amount
+     * @param _expiryDate Expiry date timestamp
+     * @param _insuranceProvider Insurance provider address
+     * @param _credentialJWT Verifiable credential JWT
+     */
+    function updateInsuranceBond(
+        address _agencyAddress,
+        string memory _policyNumber,
+        uint256 _coverageAmount,
+        uint256 _expiryDate,
+        address _insuranceProvider,
+        string memory _credentialJWT
+    ) public onlyOwner onlyRegisteredAgency(_agencyAddress) {
+        require(bytes(_policyNumber).length > 0, "Policy number cannot be empty");
+        require(_coverageAmount > 0, "Coverage amount must be greater than zero");
+        require(_expiryDate > block.timestamp, "Expiry date must be in the future");
+        require(_insuranceProvider != address(0), "Insurance provider address cannot be zero");
+
+        agencyInsurance[_agencyAddress] = InsuranceBond({
+            policyNumber: _policyNumber,
+            coverageAmount: _coverageAmount,
+            expiryDate: _expiryDate,
+            insuranceProvider: _insuranceProvider,
+            isActive: true,
+            credentialJWT: _credentialJWT,
+            lastUpdated: block.timestamp
+        });
+
+        emit InsuranceBondUpdated(_agencyAddress, _policyNumber, _coverageAmount, _expiryDate, _insuranceProvider);
+    }
+
+    /**
+     * @dev Verify insurance status for an agency
+     * @param _agencyAddress The agency's address
+     * @return isValid True if insurance is valid and not expired
+     */
+    function verifyInsuranceStatus(address _agencyAddress) public view returns (bool isValid) {
+        InsuranceBond memory bond = agencyInsurance[_agencyAddress];
+        return bond.isActive && bond.expiryDate > block.timestamp && bond.coverageAmount > 0;
+    }
+
+    /**
+     * @dev Get insurance coverage amount for an agency
+     * @param _agencyAddress The agency's address
+     * @return coverageAmount The coverage amount
+     */
+    function getInsuranceCoverage(address _agencyAddress) public view returns (uint256 coverageAmount) {
+        return agencyInsurance[_agencyAddress].coverageAmount;
+    }
+
+    /**
+     * @dev Get complete insurance bond information
+     * @param _agencyAddress The agency's address
+     * @return bond The complete insurance bond information
+     */
+    function getInsuranceBond(address _agencyAddress) public view returns (InsuranceBond memory bond) {
+        return agencyInsurance[_agencyAddress];
+    }
+
+    /**
+     * @dev Check if agency has valid insurance bond
+     * @param _agencyAddress The agency's address
+     * @return hasValidInsurance True if agency has valid, non-expired insurance
+     */
+    function hasValidInsurance(address _agencyAddress) public view returns (bool hasValidInsurance) {
+        InsuranceBond memory bond = agencyInsurance[_agencyAddress];
+        return bond.isActive && 
+               bond.expiryDate > block.timestamp && 
+               bond.coverageAmount > 0 && 
+               bytes(bond.policyNumber).length > 0;
+    }
+
+    /**
+     * @dev Deactivate insurance bond (Owner only)
+     * @param _agencyAddress The agency's address
+     */
+    function deactivateInsuranceBond(address _agencyAddress) public onlyOwner onlyRegisteredAgency(_agencyAddress) {
+        InsuranceBond storage bond = agencyInsurance[_agencyAddress];
+        require(bond.isActive, "Insurance bond is already inactive");
+        
+        bond.isActive = false;
+        bond.lastUpdated = block.timestamp;
+        
+        emit InsuranceBondExpired(_agencyAddress, bond.policyNumber);
+    }
+
+    /**
+     * @dev Get agencies with valid insurance bonds
+     * @return insuredAgencies Array of agency addresses with valid insurance
+     */
+    function getInsuredAgencies() public view returns (address[] memory insuredAgencies) {
+        uint256 count = 0;
+        
+        // First pass: count agencies with valid insurance
+        for (uint256 i = 0; i < agencyList.length; i++) {
+            if (hasValidInsurance(agencyList[i])) {
+                count++;
+            }
+        }
+        
+        // Second pass: populate the result array
+        insuredAgencies = new address[](count);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < agencyList.length; i++) {
+            if (hasValidInsurance(agencyList[i])) {
+                insuredAgencies[index] = agencyList[i];
+                index++;
+            }
+        }
+        
+        return insuredAgencies;
+    }
+
+    /**
+     * @dev Get agencies with expired insurance bonds
+     * @return expiredAgencies Array of agency addresses with expired insurance
+     */
+    function getAgenciesWithExpiredInsurance() public view returns (address[] memory expiredAgencies) {
+        uint256 count = 0;
+        
+        // First pass: count agencies with expired insurance
+        for (uint256 i = 0; i < agencyList.length; i++) {
+            InsuranceBond memory bond = agencyInsurance[agencyList[i]];
+            if (bond.coverageAmount > 0 && (bond.expiryDate <= block.timestamp || !bond.isActive)) {
+                count++;
+            }
+        }
+        
+        // Second pass: populate the result array
+        expiredAgencies = new address[](count);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < agencyList.length; i++) {
+            InsuranceBond memory bond = agencyInsurance[agencyList[i]];
+            if (bond.coverageAmount > 0 && (bond.expiryDate <= block.timestamp || !bond.isActive)) {
+                expiredAgencies[index] = agencyList[i];
+                index++;
+            }
+        }
+        
+        return expiredAgencies;
+    }
+
+    /**
+     * @dev Get qualified agencies with both good trust score and valid insurance
+     * @param _minScore Minimum trust score threshold
+     * @return qualifiedAgencies Array of fully qualified agency addresses
+     */
+    function getFullyQualifiedAgencies(uint256 _minScore) public view returns (address[] memory qualifiedAgencies) {
+        uint256 count = 0;
+        
+        // First pass: count fully qualified agencies
+        for (uint256 i = 0; i < agencyList.length; i++) {
+            if (agencies[agencyList[i]].trustScore >= _minScore && hasValidInsurance(agencyList[i])) {
+                count++;
+            }
+        }
+        
+        // Second pass: populate the result array
+        qualifiedAgencies = new address[](count);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < agencyList.length; i++) {
+            if (agencies[agencyList[i]].trustScore >= _minScore && hasValidInsurance(agencyList[i])) {
+                qualifiedAgencies[index] = agencyList[i];
+                index++;
+            }
+        }
+        
+        return qualifiedAgencies;
     }
 }

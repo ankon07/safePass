@@ -8,6 +8,8 @@ import credentialRoutes from './api/credentials';
 import blockchainRoutes from './api/blockchain';
 import trustScoreRoutes from './api/trustScore';
 import zkpRoutes from './api/zkp';
+import insuranceRoutes from './api/insurance';
+import escrowRoutes from './api/escrow';
 import { trustScoreService } from './services/trustScoreService';
 
 const app = express();
@@ -38,6 +40,8 @@ app.use('/api', credentialRoutes);
 app.use('/api/blockchain', blockchainRoutes);
 app.use('/api/trust-scores', trustScoreRoutes);
 app.use('/api/zkp', zkpRoutes);
+app.use('/api/insurance', insuranceRoutes);
+app.use('/api/escrow', escrowRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -65,6 +69,8 @@ const startServer = async () => {
       console.log(`🔐 Auth endpoints: http://localhost:${config.port}/api/auth`);
       console.log(`🔢 Trust Score endpoints: http://localhost:${config.port}/api/trust-scores`);
       console.log(`🔐 ZKP endpoints: http://localhost:${config.port}/api/zkp`);
+      console.log(`🛡️ Insurance endpoints: http://localhost:${config.port}/api/insurance`);
+      console.log(`💰 Escrow endpoints: http://localhost:${config.port}/api/escrow`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       
       // Initialize trust score service

@@ -1,0 +1,132 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const supabase_1 = require("../config/supabase");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+// GET /api/users - Get all users (Admin/Regulator only)
+router.get('/', auth_1.authenticateToken, (0, auth_1.requireRole)(['AgencyAdmin', 'Regulator']), async (req, res) => {
+    try {
+        const { data: users, error } = await supabase_1.supabase
+            .from('users')
+            .select('id, email, name, role, did, created_at')
+            .order('created_at', { ascending: false });
+        if (error) {
+            console.error('Database query error:', error);
+            return res.status(500).json({ error: 'Failed to fetch users' });
+        }
+        const userProfiles = users.map(user => ({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            did: user.did,
+            created_at: user.created_at,
+        }));
+        res.status(200).json({
+            users: userProfiles,
+            total: userProfiles.length,
+        });
+    }
+    catch (error) {
+        console.error('Get users error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// GET /api/users/workers - Get all workers (Agency Admin/Regulator only)
+router.get('/workers', auth_1.authenticateToken, (0, auth_1.requireRole)(['AgencyAdmin', 'Regulator']), async (req, res) => {
+    try {
+        const { data: workers, error } = await supabase_1.supabase
+            .from('users')
+            .select('id, email, name, role, did, created_at')
+            .eq('role', 'Worker')
+            .order('created_at', { ascending: false });
+        if (error) {
+            console.error('Database query error:', error);
+            return res.status(500).json({ error: 'Failed to fetch workers' });
+        }
+        const workerProfiles = workers.map(worker => ({
+            id: worker.id,
+            email: worker.email,
+            name: worker.name,
+            role: worker.role,
+            did: worker.did,
+            created_at: worker.created_at,
+        }));
+        res.status(200).json({
+            workers: workerProfiles,
+            total: workerProfiles.length,
+        });
+    }
+    catch (error) {
+        console.error('Get workers error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// GET /api/users/:id - Get user by ID (Admin/Regulator or own profile)
+router.get('/:id', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const currentUser = req.user;
+        // Check if user is trying to access their own profile or has admin privileges
+        if (currentUser.id !== id && !['AgencyAdmin', 'Regulator'].includes(currentUser.role)) {
+            return res.status(403).json({ error: 'Access denied. You can only view your own profile.' });
+        }
+        const { data: user, error } = await supabase_1.supabase
+            .from('users')
+            .select('id, email, name, role, did, created_at')
+            .eq('id', id)
+            .single();
+        if (error || !user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        const userProfile = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            did: user.did,
+            created_at: user.created_at,
+        };
+        res.status(200).json({
+            user: userProfile,
+        });
+    }
+    catch (error) {
+        console.error('Get user by ID error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// GET /api/users/stats/overview - Get user statistics (Admin/Regulator only)
+router.get('/stats/overview', auth_1.authenticateToken, (0, auth_1.requireRole)(['AgencyAdmin', 'Regulator']), async (req, res) => {
+    try {
+        // Get total counts by role
+        const { data: stats, error } = await supabase_1.supabase
+            .from('users')
+            .select('role')
+            .order('role');
+        if (error) {
+            console.error('Database query error:', error);
+            return res.status(500).json({ error: 'Failed to fetch statistics' });
+        }
+        const roleCounts = stats.reduce((acc, user) => {
+            acc[user.role] = (acc[user.role] || 0) + 1;
+            return acc;
+        }, {});
+        const totalUsers = stats.length;
+        res.status(200).json({
+            totalUsers,
+            roleBreakdown: {
+                workers: roleCounts.Worker || 0,
+                agencyAdmins: roleCounts.AgencyAdmin || 0,
+                regulators: roleCounts.Regulator || 0,
+            },
+            statistics: roleCounts,
+        });
+    }
+    catch (error) {
+        console.error('Get statistics error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+exports.default = router;

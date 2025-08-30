@@ -27,10 +27,12 @@ async function main() {
     // Deploy EmploymentContract
     console.log("Deploying EmploymentContract...");
     const EmploymentContractFactory = await hre.ethers.getContractFactory("EmploymentContract");
+    const payFrequency = 30; // 30 days (monthly payments)
     const employmentContract = await EmploymentContractFactory.deploy(
       workerAddress,
       employerAddress,
       salary,
+      payFrequency,
       termsHash,
       regulatorAddress
     );

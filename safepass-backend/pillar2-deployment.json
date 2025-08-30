@@ -1,0 +1,27 @@
+{
+  "network": "besu_local",
+  "timestamp": "2025-08-31T01:02:00.000Z",
+  "deployer": "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73",
+  "contracts": {
+    "EscrowContract": "0x338F940F4231662Dd9a689DdC4691450de932Be5",
+    "AgencyRegistry": "0xa9ECbe3F9600f9bF3ec88a428387316714ac95a0",
+    "EmploymentContract": "0x2114De86c8Ea1FD8144C2f1e1e94C74E498afB1b",
+    "Anchor": "0xdB6371a89E3C840a14DE470Dd0247cC7459Fa2A2"
+  },
+  "sampleData": {
+    "workerAddress": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "employerAddress": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "regulatorAddress": "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73",
+    "salary": "1000.0",
+    "payFrequency": 30,
+    "termsHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+  },
+  "status": "deployed",
+  "pillar2Features": {
+    "escrowDeposited": true,
+    "agencyRegistered": true,
+    "contractsLinked": true,
+    "escrowAmount": "2000.0 ETH",
+    "escrowRequirement": "2000.0 ETH"
+  }
+}

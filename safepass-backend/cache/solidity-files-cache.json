@@ -1,46 +1,10 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "/home/meraxix/Downloads/safePass/contracts/Lock.sol": {
-      "lastModificationDate": 1756322446215,
-      "contentHash": "7d60f48814288fa39e8036e8003c8042",
-      "sourceName": "contracts/Lock.sol",
-      "solcConfig": {
-        "version": "0.8.20",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Lock"
-      ]
-    },
-    "/home/meraxix/Downloads/safePass/contracts/Anchor.sol": {
-      "lastModificationDate": 1756324926305,
-      "contentHash": "a6f8863bba140ae0f7dddaaf49621ff8",
-      "sourceName": "contracts/Anchor.sol",
+    "/home/meraxix/Downloads/safePass/safepass-backend/contracts/AgencyRegistry.sol": {
+      "lastModificationDate": 1756579191841,
+      "contentHash": "ae42d0e2ae74f8ade69067177ef734b5",
+      "sourceName": "contracts/AgencyRegistry.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -72,10 +36,10 @@
         "^0.8.20"
       ],
       "artifacts": [
-        "Anchor"
+        "AgencyRegistry"
       ]
     },
-    "/home/meraxix/Downloads/safePass/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
+    "/home/meraxix/Downloads/safePass/safepass-backend/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
       "lastModificationDate": 1756324784277,
       "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
@@ -113,7 +77,7 @@
         "Ownable"
       ]
     },
-    "/home/meraxix/Downloads/safePass/node_modules/@openzeppelin/contracts/utils/Context.sol": {
+    "/home/meraxix/Downloads/safePass/safepass-backend/node_modules/@openzeppelin/contracts/utils/Context.sol": {
       "lastModificationDate": 1756324779589,
       "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
@@ -149,9 +113,122 @@
         "Context"
       ]
     },
-    "/home/meraxix/Downloads/safePass/contracts/EmploymentContract.sol": {
-      "lastModificationDate": 1756461544769,
-      "contentHash": "859dc000b7e318ad468a2578f8720c5e",
+    "/home/meraxix/Downloads/safePass/safepass-backend/contracts/EscrowContract.sol": {
+      "lastModificationDate": 1756579136889,
+      "contentHash": "d02d3247322bdd0d9c54c079e2a3888d",
+      "sourceName": "contracts/EscrowContract.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "EscrowContract"
+      ]
+    },
+    "/home/meraxix/Downloads/safePass/safepass-backend/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol": {
+      "lastModificationDate": 1756324784558,
+      "contentHash": "190613e556d509d9e9a0ea43dc5d891d",
+      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
+      ]
+    },
+    "/home/meraxix/Downloads/safePass/safepass-backend/contracts/Anchor.sol": {
+      "lastModificationDate": 1756324926305,
+      "contentHash": "a6f8863bba140ae0f7dddaaf49621ff8",
+      "sourceName": "contracts/Anchor.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Anchor"
+      ]
+    },
+    "/home/meraxix/Downloads/safePass/safepass-backend/contracts/EmploymentContract.sol": {
+      "lastModificationDate": 1756579087135,
+      "contentHash": "5bee156ae29348263858bcbb366bf00e",
       "sourceName": "contracts/EmploymentContract.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -185,7 +262,7 @@
         "EmploymentContract"
       ]
     },
-    "/home/meraxix/Downloads/safePass/contracts/EthereumDIDRegistry.sol": {
+    "/home/meraxix/Downloads/safePass/safepass-backend/contracts/EthereumDIDRegistry.sol": {
       "lastModificationDate": 1756404568145,
       "contentHash": "d5d9b7d6346d8342d7c395f04840f55b",
       "sourceName": "contracts/EthereumDIDRegistry.sol",
@@ -221,10 +298,10 @@
         "EthereumDIDRegistry"
       ]
     },
-    "/home/meraxix/Downloads/safePass/contracts/AgencyRegistry.sol": {
-      "lastModificationDate": 1756472730177,
-      "contentHash": "8c0b054113142e9bb47244fe14f43f53",
-      "sourceName": "contracts/AgencyRegistry.sol",
+    "/home/meraxix/Downloads/safePass/safepass-backend/contracts/Lock.sol": {
+      "lastModificationDate": 1756322446215,
+      "contentHash": "7d60f48814288fa39e8036e8003c8042",
+      "sourceName": "contracts/Lock.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -249,14 +326,12 @@
           }
         }
       },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
+      "imports": [],
       "versionPragmas": [
         "^0.8.20"
       ],
       "artifacts": [
-        "AgencyRegistry"
+        "Lock"
       ]
     }
   }
