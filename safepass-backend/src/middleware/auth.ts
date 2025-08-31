@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { supabase } from '../config/supabase';
 
@@ -10,6 +10,7 @@ declare global {
       user?: {
         id: string;
         email: string;
+        name: string;
         role: string;
         did: string;
       };
@@ -53,6 +54,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     req.user = {
       id: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
       did: user.did,
     };

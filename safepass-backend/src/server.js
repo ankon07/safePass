@@ -18,8 +18,23 @@ const escrow_1 = __importDefault(require("./api/escrow"));
 const trustScoreService_1 = require("./services/trustScoreService");
 const app = (0, express_1.default)();
 // Middleware
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://192.168.0.147:3000',
+    process.env.FRONTEND_URL
+].filter(Boolean); // Remove any undefined values
+
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }));
 app.use(express_1.default.json({ limit: '10mb' }));

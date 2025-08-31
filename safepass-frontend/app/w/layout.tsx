@@ -14,8 +14,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { ProfileDropdown } from "@/components/worker-portal/profile-dropdown";
 
 // Navigation items for the sidebar
 const navItems = [
@@ -94,10 +94,7 @@ export default function WorkerPortalLayout({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1" /> {/* Spacer */}
-          <Avatar>
-            <AvatarImage src="https://i.pravatar.cc/150?u=worker" />
-            <AvatarFallback>WK</AvatarFallback>
-          </Avatar>
+          <ProfileDropdown />
         </header>
         <main className="flex-1 p-4 lg:p-6 bg-white">{children}</main>
       </div>

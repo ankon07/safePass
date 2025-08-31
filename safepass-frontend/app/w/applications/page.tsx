@@ -1,9 +1,51 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { applications } from "@/lib/dummy-data";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ApplicationStatusCard } from "@/components/worker-portal/application-status-card";
-import { Info } from "lucide-react";
+import { Info, Loader2, AlertCircle } from "lucide-react";
+import { JobApplication } from "@/lib/api-types";
+import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 
 export default function ApplicationTrackingDashboardPage() {
+  const { user } = useAuth();
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiClient.getWorkerApplications();
+        setApplications(response.data);
+      } catch (err) {
+        console.error('Error fetching applications:', err);
+        setError('Failed to load your applications. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchApplications();
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-viridian-green" />
+          <p className="text-slate-500">Loading your applications...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -15,15 +57,22 @@ export default function ApplicationTrackingDashboardPage() {
         </p>
       </div>
 
+      {error && (
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {applications.length > 0 ? (
         <div className="space-y-6">
           {applications.map((app) => (
             <Link
               key={app.id}
               href={
-                app.status === "Offer Received"
+                app.status === "Accepted"
                   ? `/w/applications/${app.id}/review`
-                  : `/w/jobs/${app.job.id}`
+                  : `/w/jobs/${app.jobId}`
               }
             >
               <ApplicationStatusCard application={app} />

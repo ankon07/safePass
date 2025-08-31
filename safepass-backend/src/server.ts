@@ -10,13 +10,30 @@ import trustScoreRoutes from './api/trustScore';
 import zkpRoutes from './api/zkp';
 import insuranceRoutes from './api/insurance';
 import escrowRoutes from './api/escrow';
+import jobsRoutes from './api/jobs';
+import applicationsRoutes from './api/applications';
 import { trustScoreService } from './services/trustScoreService';
 
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://192.168.0.147:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean); // Remove any undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
@@ -35,13 +52,33 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+
+// Debug: Log document routes registration
+console.log('🔍 Registering document routes...');
+console.log('Document routes object:', documentRoutes);
+console.log('Document routes type:', typeof documentRoutes);
+
+// Add middleware to log all incoming requests
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
 app.use('/api', documentRoutes);
+
+// Add a test route to verify mounting works
+app.get('/api/test-route', (req, res) => {
+  res.json({ message: 'Test route works!' });
+});
+
 app.use('/api', credentialRoutes);
 app.use('/api/blockchain', blockchainRoutes);
 app.use('/api/trust-scores', trustScoreRoutes);
 app.use('/api/zkp', zkpRoutes);
 app.use('/api/insurance', insuranceRoutes);
 app.use('/api/escrow', escrowRoutes);
+app.use('/api', jobsRoutes);
+app.use('/api', applicationsRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -71,6 +108,8 @@ const startServer = async () => {
       console.log(`🔐 ZKP endpoints: http://localhost:${config.port}/api/zkp`);
       console.log(`🛡️ Insurance endpoints: http://localhost:${config.port}/api/insurance`);
       console.log(`💰 Escrow endpoints: http://localhost:${config.port}/api/escrow`);
+      console.log(`💼 Jobs endpoints: http://localhost:${config.port}/api/jobs`);
+      console.log(`📝 Applications endpoints: http://localhost:${config.port}/api/worker/applications`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       
       // Initialize trust score service

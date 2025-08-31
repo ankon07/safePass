@@ -7,18 +7,19 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Application, ApplicationStatus } from "@/lib/dummy-data";
+import { JobApplication } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 // A function to determine the badge color based on status
 const getStatusVariant = (
-  status: ApplicationStatus
+  status: string
 ): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
-    case "Offer Received":
+    case "Accepted":
       return "default";
-    case "Under Review":
+    case "Reviewed":
+    case "Pending":
       return "secondary";
     case "Rejected":
       return "destructive";
@@ -30,7 +31,7 @@ const getStatusVariant = (
 export function ApplicationStatusCard({
   application,
 }: {
-  application: Application;
+  application: JobApplication;
 }) {
   return (
     <Card className="hover:border-viridian-green transition-colors">
@@ -38,14 +39,16 @@ export function ApplicationStatusCard({
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg text-dark-jungle-green">
-              {application.job.title}
+              {application.job?.title || 'Job Title'}
             </CardTitle>
-            <CardDescription>{application.job.companyName}</CardDescription>
+            <CardDescription>
+              {application.job?.companyName || 'Company Name'}
+            </CardDescription>
           </div>
           <Badge
             variant={getStatusVariant(application.status)}
             className={cn(
-              application.status === "Offer Received" &&
+              application.status === "Accepted" &&
                 "bg-viridian-green text-white"
             )}
           >
@@ -53,10 +56,28 @@ export function ApplicationStatusCard({
           </Badge>
         </div>
       </CardHeader>
-      <CardFooter>
+      <CardContent>
+        {application.job?.location && (
+          <p className="text-sm text-slate-600">
+            📍 {application.job.location.city}, {application.job.location.country}
+          </p>
+        )}
+        {application.reviewerNotes && (
+          <div className="mt-2">
+            <p className="text-sm font-medium text-slate-700">Review Notes:</p>
+            <p className="text-sm text-slate-600">{application.reviewerNotes}</p>
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-between items-center">
         <p className="text-xs text-slate-500">
-          Submitted on: {format(application.submissionDate, "PPP")}
+          Applied on: {format(new Date(application.appliedAt), "PPP")}
         </p>
+        {application.reviewedAt && (
+          <p className="text-xs text-slate-500">
+            Reviewed: {format(new Date(application.reviewedAt), "PPP")}
+          </p>
+        )}
       </CardFooter>
     </Card>
   );

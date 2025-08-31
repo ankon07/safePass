@@ -1,5 +1,9 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
-import { getJobById } from "@/lib/dummy-data";
+import { Job } from "@/lib/api-types";
+import { apiClient } from "@/lib/api-client";
 import {
   Card,
   CardContent,
@@ -7,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertCircle } from "lucide-react";
 import { ApplicationForm } from "@/components/worker-portal/application-form";
 
 // In a real app, this data would be associated with the job itself
@@ -22,7 +28,53 @@ export default function ApplicationSubmissionPage({
 }: {
   params: { jobId: string };
 }) {
-  const job = getJobById(params.jobId);
+  const [job, setJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiClient.getJobById(params.jobId);
+        setJob(response.data);
+      } catch (err: any) {
+        console.error('Error fetching job:', err);
+        if (err.status === 404) {
+          notFound();
+        } else {
+          setError('Failed to load job details. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJob();
+  }, [params.jobId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-viridian-green" />
+          <p className="text-slate-500">Loading job details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   if (!job) {
     notFound();
@@ -49,7 +101,8 @@ export default function ApplicationSubmissionPage({
         </CardHeader>
         <CardContent>
           <ApplicationForm
-            agencyName={job.agency.name}
+            jobId={job.id}
+            agencyName={job.companyName}
             requiredCredentials={requiredCredentials}
           />
         </CardContent>

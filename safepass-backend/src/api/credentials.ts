@@ -5,21 +5,12 @@ import { getAgent } from '../services/identityService';
 
 const router = Router();
 
-// Interface for authenticated request
-interface AuthenticatedRequest extends Request {
-    user?: {
-        id: string;
-        email: string;
-        role: string;
-        did: string;
-    };
-}
 
 /**
  * POST /api/regulator/issue-credential
  * Regulator issues a verifiable credential for an approved document
  */
-router.post('/regulator/issue-credential', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/regulator/issue-credential', authenticateToken, async (req: Request, res: Response) => {
     try {
         // Verify user is a regulator
         if (!req.user || req.user.role !== 'Regulator') {
@@ -116,13 +107,14 @@ router.post('/regulator/issue-credential', authenticateToken, async (req: Authen
             });
         }
 
-        // Update document status to approved
+        // Update document status to verified
         const { error: updateError } = await supabase
             .from('document_uploads')
             .update({
-                status: 'Approved',
+                status: 'Verified',
                 reviewed_at: new Date().toISOString(),
-                reviewer_id: req.user.id
+                reviewer_id: req.user.id,
+                reviewer_notes: `Document verified and credential issued by ${req.user.email}`
             })
             .eq('id', documentUploadId);
 
@@ -157,7 +149,7 @@ router.post('/regulator/issue-credential', authenticateToken, async (req: Authen
  * POST /api/regulator/reject-document
  * Regulator rejects a document upload
  */
-router.post('/regulator/reject-document', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/regulator/reject-document', authenticateToken, async (req: Request, res: Response) => {
     try {
         // Verify user is a regulator
         if (!req.user || req.user.role !== 'Regulator') {
@@ -237,7 +229,7 @@ router.post('/regulator/reject-document', authenticateToken, async (req: Authent
  * GET /api/worker/me/credentials
  * Worker retrieves their verifiable credentials
  */
-router.get('/worker/me/credentials', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/worker/me/credentials', authenticateToken, async (req: Request, res: Response) => {
     try {
         // Verify user is a worker
         if (!req.user || req.user.role !== 'Worker') {

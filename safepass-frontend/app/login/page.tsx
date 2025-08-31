@@ -17,37 +17,54 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { z } from "zod";
+import { useEffect } from "react";
 
-// NOTE: We would use a Zod schema here in a real app
-// For simplicity, we are skipping it for the login form.
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
-type LoginFormData = {
-  email: string;
-  password: string;
-};
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
+  
   const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
     },
   });
 
+  // Clear error when form values change
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, [form.watch("email"), form.watch("password"), error, clearError]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      // This will be handled by the auth context redirect logic
+    }
+  }, [isAuthenticated]);
+
   async function onSubmit(values: LoginFormData) {
-    setIsLoading(true);
-    // TODO: Implement actual authentication logic
-    console.log(values);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    // On success, redirect to the agency dashboard
-    router.push("/a/dashboard");
+    try {
+      await login(values.email, values.password);
+      // Redirect is handled by the auth context
+    } catch (error) {
+      // Error is handled by the auth context
+      console.error("Login failed:", error);
+    }
   }
 
   return (
@@ -58,10 +75,16 @@ export default function LoginPage() {
             Welcome Back
           </CardTitle>
           <CardDescription>
-            Log in to your SafePass Agency Dashboard.
+            Log in to your SafePass account.
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -72,8 +95,10 @@ export default function LoginPage() {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="contact@globalrecruiters.com"
+                        type="email"
+                        placeholder="your.email@example.com"
                         {...field}
+                        disabled={isLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -91,6 +116,7 @@ export default function LoginPage() {
                         type="password"
                         placeholder="••••••••"
                         {...field}
+                        disabled={isLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -106,6 +132,7 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
+          
           <div className="mt-6 text-center text-sm">
             Don&apos;t have an account?{" "}
             <Link href="/register" className="underline text-viridian-green">

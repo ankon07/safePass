@@ -1,9 +1,12 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getJobById } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Clock,
@@ -11,19 +14,79 @@ import {
   MapPin,
   ShieldCheck,
   Star,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import { Job } from "@/lib/api-types";
+import { apiClient } from "@/lib/api-client";
 
 export default function JobDetailsPage({
   params,
 }: {
   params: { jobId: string };
 }) {
-  const job = getJobById(params.jobId);
+  const [job, setJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // If no job is found for the given ID, show the 404 page
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiClient.getJobById(params.jobId);
+        setJob(response.data);
+      } catch (err: any) {
+        console.error('Error fetching job:', err);
+        if (err.status === 404) {
+          notFound();
+        } else {
+          setError('Failed to load job details. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJob();
+  }, [params.jobId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-viridian-green" />
+          <p className="text-slate-500">Loading job details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <Link
+          href="/w/jobs"
+          className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-dark-jungle-green"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to all jobs
+        </Link>
+      </div>
+    );
+  }
+
   if (!job) {
     notFound();
   }
+
+  const formatSalary = (salary: { min: number; max: number; currency: string }) => {
+    return `${salary.currency} ${salary.min.toLocaleString()} - ${salary.max.toLocaleString()}`;
+  };
 
   return (
     <div>
@@ -39,25 +102,57 @@ export default function JobDetailsPage({
         {/* Left Column: Main Job Details */}
         <div className="lg:col-span-2 space-y-6">
           <div className="border rounded-lg p-6">
-            <h1 className="text-3xl font-bold text-dark-jungle-green">
-              {job.title}
-            </h1>
-            <p className="text-lg text-slate-600 mt-1">{job.companyName}</p>
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-dark-jungle-green">
+                  {job.title}
+                </h1>
+                <p className="text-lg text-slate-600 mt-1">{job.companyName}</p>
+              </div>
+              <Badge variant={job.status === 'Active' ? 'default' : 'secondary'}>
+                {job.status}
+              </Badge>
+            </div>
 
-            <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
+            <div className="flex flex-wrap gap-4 text-sm text-slate-500">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 <span>
-                  {job.location}, {job.country}
+                  {job.location.city}, {job.location.country}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
-                <span>{job.salary}</span>
+                <span>{formatSalary(job.salary)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>{job.contractDuration} Contract</span>
+                <span>{job.jobType}</span>
+              </div>
+            </div>
+
+            {/* Job Details */}
+            <div className="mt-6 space-y-4">
+              <div>
+                <h3 className="font-semibold text-dark-jungle-green mb-2">Category</h3>
+                <Badge variant="outline">{job.category}</Badge>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-dark-jungle-green mb-2">Working Hours</h3>
+                <p className="text-slate-600">{job.workingHours}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {job.visaSponsorship && (
+                  <Badge variant="secondary">Visa Sponsored</Badge>
+                )}
+                {job.accommodationProvided && (
+                  <Badge variant="secondary">Accommodation Provided</Badge>
+                )}
+                {job.transportationProvided && (
+                  <Badge variant="secondary">Transportation Provided</Badge>
+                )}
               </div>
             </div>
           </div>
@@ -67,17 +162,35 @@ export default function JobDetailsPage({
               Job Description
             </h2>
             <p className="text-slate-600 whitespace-pre-line">
-              {/* Using dummy text as the description is currently '...' */}
-              We are seeking a highly skilled and experienced Senior Welder to
-              join our team in Doha, Qatar. The ideal candidate will be
-              responsible for various welding projects, ensuring high-quality
-              workmanship and adherence to safety standards. \nKey
-              Responsibilities: - Perform welding on various materials using
-              different techniques. - Read and interpret blueprints and
-              schematics. - Maintain welding equipment and ensure a safe work
-              environment.
+              {job.description}
             </p>
           </div>
+
+          {job.requirements && job.requirements.length > 0 && (
+            <div className="border rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 text-dark-jungle-green">
+                Requirements
+              </h2>
+              <ul className="list-disc list-inside space-y-2 text-slate-600">
+                {job.requirements.map((requirement, index) => (
+                  <li key={index}>{requirement}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {job.benefits && job.benefits.length > 0 && (
+            <div className="border rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 text-dark-jungle-green">
+                Benefits
+              </h2>
+              <ul className="list-disc list-inside space-y-2 text-slate-600">
+                {job.benefits.map((benefit, index) => (
+                  <li key={index}>{benefit}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Agency Info & Apply Button */}
@@ -87,29 +200,30 @@ export default function JobDetailsPage({
               <CardTitle className="text-lg">Recruiting Agency</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link
-                href={`/w/agencies/${job.agency.id}`}
-                className="hover:underline"
-              >
-                <p className="font-semibold text-viridian-green">
-                  {job.agency.name}
-                </p>
-              </Link>
+              <p className="font-semibold text-viridian-green">
+                {job.companyName}
+              </p>
               <div className="flex items-center gap-2 mt-2 text-sm">
                 <ShieldCheck className="h-5 w-5 text-green-600" />
-                <span className="font-bold">
-                  {(job.agency.trustScore * 100).toFixed(0)}% Trust Score
-                </span>
+                <span className="font-bold">Verified Agency</span>
+              </div>
+              <div className="mt-4 text-sm text-slate-500">
+                <p><strong>Posted:</strong> {new Date(job.postedAt).toLocaleDateString()}</p>
+                <p><strong>Expires:</strong> {new Date(job.expiresAt).toLocaleDateString()}</p>
               </div>
             </CardContent>
           </Card>
+          
           <div className="sticky top-20">
             <Button
               size="lg"
               className="w-full bg-viridian-green hover:bg-sage-green"
               asChild
+              disabled={job.status !== 'Active'}
             >
-              <Link href={`/w/jobs/${job.id}/apply`}>Apply Now</Link>
+              <Link href={`/w/jobs/${job.id}/apply`}>
+                {job.status === 'Active' ? 'Apply Now' : 'Job Not Available'}
+              </Link>
             </Button>
           </div>
         </div>
