@@ -36,6 +36,10 @@
     "anchor:run": "node scripts/anchorService.js",
     "anchor:test": "node scripts/anchorService.js --help",
     "anchor:verify": "node scripts/verifyAnchoring.js",
+    "anchor:enhanced:start": "node scripts/enhancedAnchorService.js start",
+    "anchor:enhanced:run": "node scripts/enhancedAnchorService.js run",
+    "anchor:enhanced:status": "node scripts/enhancedAnchorService.js status",
+    "anchor:enhanced:test": "node scripts/enhancedAnchorService.js test",
     "phase6:deploy": "node scripts/deployAgencyRegistry.js",
     "phase6:test": "node test-phase6.js",
     "phase6:setup": "psql -h $SUPABASE_HOST -U postgres -d postgres -f phase6-database-schema.sql"
@@ -83,6 +87,7 @@
     "merkletreejs": "^0.5.2",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
+    "pg": "^8.11.3",
     "reflect-metadata": "^0.2.2",
     "snarkjs": "^0.7.5",
     "sqlite3": "^5.1.7",

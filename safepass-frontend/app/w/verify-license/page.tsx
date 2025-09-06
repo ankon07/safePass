@@ -31,8 +31,24 @@ export default function VerifyLicensePage() {
     setResult(null);
 
     try {
-      const data = await apiClient.verifyLicenseByProofId(proofId.trim());
-      setResult(data);
+      const data = await apiClient.validateProofExists(proofId.trim());
+      setResult({
+        is_valid: data.is_valid,
+        proof_id: data.proof_id,
+        message: data.is_valid ? 'License proof is valid' : 'License proof is invalid',
+        timestamp: data.timestamp,
+        agency_info: {
+          name: 'Agency Information Not Available',
+          email: 'contact@agency.com',
+          blockchain_address: 'N/A',
+          license_verified: data.is_valid
+        },
+        verification_details: {
+          verified_at: data.timestamp,
+          expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days from now
+          circuit_type: 'license_verification'
+        }
+      });
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');
     } finally {

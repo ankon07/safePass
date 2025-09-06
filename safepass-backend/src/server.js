@@ -15,6 +15,7 @@ const trustScore_1 = __importDefault(require("./api/trustScore"));
 const zkp_1 = __importDefault(require("./api/zkp"));
 const insurance_1 = __importDefault(require("./api/insurance"));
 const escrow_1 = __importDefault(require("./api/escrow"));
+const verification_1 = __importDefault(require("./api/verification"));
 const trustScoreService_1 = require("./services/trustScoreService");
 const app = (0, express_1.default)();
 // Middleware
@@ -57,6 +58,7 @@ app.use('/api/trust-scores', trustScore_1.default);
 app.use('/api/zkp', zkp_1.default);
 app.use('/api/insurance', insurance_1.default);
 app.use('/api/escrow', escrow_1.default);
+app.use('/api/verification', verification_1.default);
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -83,6 +85,7 @@ const startServer = async () => {
             console.log(`🔐 ZKP endpoints: http://localhost:${environment_1.config.port}/api/zkp`);
             console.log(`🛡️ Insurance endpoints: http://localhost:${environment_1.config.port}/api/insurance`);
             console.log(`💰 Escrow endpoints: http://localhost:${environment_1.config.port}/api/escrow`);
+            console.log(`🔍 Verification endpoints: http://localhost:${environment_1.config.port}/api/verification`);
             console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
             // Initialize trust score service
             console.log('🎯 Initializing trust score calculator...');

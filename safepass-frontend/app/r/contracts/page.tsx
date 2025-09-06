@@ -426,19 +426,19 @@ function RegulatorContractsPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="font-medium">Total Deposits:</span>
-                      <p className="text-lg font-semibold">{escrowStats.total_deposits}</p>
+                      <p className="text-lg font-semibold">{escrowStats.total_deposits || 0}</p>
                     </div>
                     <div>
                       <span className="font-medium">Total Amount:</span>
-                      <p className="text-lg font-semibold">${escrowStats.total_amount.toLocaleString()}</p>
+                      <p className="text-lg font-semibold">${(escrowStats.total_amount || 0).toLocaleString()}</p>
                     </div>
                     <div>
                       <span className="font-medium">Active Amount:</span>
-                      <p className="text-lg font-semibold">${escrowStats.active_amount.toLocaleString()}</p>
+                      <p className="text-lg font-semibold">${(escrowStats.active_amount || 0).toLocaleString()}</p>
                     </div>
                     <div>
                       <span className="font-medium">Released Amount:</span>
-                      <p className="text-lg font-semibold">${escrowStats.released_amount.toLocaleString()}</p>
+                      <p className="text-lg font-semibold">${(escrowStats.released_amount || 0).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>

@@ -25,6 +25,7 @@ import {
   Calendar,
   User,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth, withAuth } from "@/lib/auth-context";
@@ -36,6 +37,7 @@ function DocumentReviewPage() {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [processingDoc, setProcessingDoc] = useState<string | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
@@ -52,18 +54,32 @@ function DocumentReviewPage() {
     fetchPendingDocuments();
   }, []);
 
-  const fetchPendingDocuments = async () => {
+  const fetchPendingDocuments = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
+      console.log('🔄 Fetching pending documents...');
       const response = await apiClient.getPendingDocuments();
+      console.log('📋 Received pending documents:', response.data.length, 'documents');
       setDocuments(response.data);
     } catch (err) {
-      console.error('Error fetching pending documents:', err);
+      console.error('❌ Error fetching pending documents:', err);
       setError('Failed to load pending documents. Please try again.');
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleRefresh = async () => {
+    await fetchPendingDocuments(true);
   };
 
   const handleApproveDocument = async (document: Document) => {
@@ -88,7 +104,8 @@ function DocumentReviewPage() {
         email: document.worker?.email,
       });
 
-      // Refresh the documents list
+      // Refresh the documents list to remove the approved document
+      console.log('✅ Document approved successfully, refreshing list...');
       await fetchPendingDocuments();
       setDialogOpen(false);
       setSelectedDoc(null);
@@ -96,6 +113,9 @@ function DocumentReviewPage() {
 
       // Show credential sharing modal
       setCredentialShareModalOpen(true);
+      
+      // Clear any previous errors
+      setError(null);
     } catch (err) {
       console.error('Error approving document:', err);
       setError('Failed to approve document. Please try again.');
@@ -118,11 +138,15 @@ function DocumentReviewPage() {
         reviewerNotes: reviewNotes
       });
 
-      // Refresh the documents list
+      // Refresh the documents list to remove the rejected document
+      console.log('❌ Document rejected successfully, refreshing list...');
       await fetchPendingDocuments();
       setDialogOpen(false);
       setSelectedDoc(null);
       setReviewNotes("");
+      
+      // Clear any previous errors
+      setError(null);
     } catch (err) {
       console.error('Error rejecting document:', err);
       setError('Failed to reject document. Please try again.');
@@ -169,12 +193,25 @@ function DocumentReviewPage() {
   return (
     <div className="p-4 lg:p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-dark-jungle-green">
-          Document Review
-        </h1>
-        <p className="text-slate-500">
-          Review and verify worker documents for credential issuance.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-dark-jungle-green">
+              Document Review
+            </h1>
+            <p className="text-slate-500">
+              Review and verify worker documents for credential issuance.
+            </p>
+          </div>
+          <Button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {error && (

@@ -16,6 +16,7 @@ import {
   Link2,
   DollarSign,
   FileCheck,
+  Database,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/w/blockchain-credentials", label: "Blockchain Credentials", icon: Link2 },
   { href: "/w/escrow", label: "Escrow Deposits", icon: DollarSign },
   { href: "/w/contracts", label: "Employment Contracts", icon: FileCheck },
+  { href: "/w/merkle-verification", label: "Merkle Verification", icon: Database },
   { href: "/w/verify-license", label: "Verify License", icon: Shield },
   { href: "/w/grievances", label: "My Grievances", icon: Flag },
   { href: "/w/support", label: "Help & Support", icon: LifeBuoy },

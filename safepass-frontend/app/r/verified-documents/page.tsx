@@ -43,6 +43,7 @@ import {
   AlertCircle,
   Award,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth, withAuth } from "@/lib/auth-context";
@@ -60,11 +61,13 @@ function VerifiedDocumentsPage() {
   const [documents, setDocuments] = useState<VerifiedDocument[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<VerifiedDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("all");
   const [selectedDocument, setSelectedDocument] = useState<VerifiedDocument | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchVerifiedDocuments();
@@ -74,20 +77,60 @@ function VerifiedDocumentsPage() {
     filterDocuments();
   }, [documents, searchQuery, documentTypeFilter]);
 
-  const fetchVerifiedDocuments = async () => {
+  // Auto-refresh every 30 seconds when page is visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && !loading && !refreshing) {
+        handleRefresh();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [loading, refreshing]);
+
+  // Listen for visibility changes to refresh when user returns to tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !loading && !refreshing) {
+        // Refresh if it's been more than 1 minute since last refresh
+        const timeSinceLastRefresh = new Date().getTime() - lastRefresh.getTime();
+        if (timeSinceLastRefresh > 60000) { // 1 minute
+          handleRefresh();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [lastRefresh, loading, refreshing]);
+
+  const fetchVerifiedDocuments = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await apiClient.getVerifiedDocuments();
       setDocuments(response.data as VerifiedDocument[]);
+      setLastRefresh(new Date());
     } catch (err) {
       console.error('Error fetching verified documents:', err);
       const apiError = err as ApiError;
       setError(apiError.error || 'Failed to load verified documents. Please try again.');
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleRefresh = async () => {
+    await fetchVerifiedDocuments(true);
   };
 
   const filterDocuments = () => {
@@ -169,12 +212,30 @@ function VerifiedDocumentsPage() {
   return (
     <div className="p-4 lg:p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-dark-jungle-green">
-          Verified Documents
-        </h1>
-        <p className="text-slate-500">
-          View and manage all verified documents with complete verification details and credentials.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-dark-jungle-green">
+              Verified Documents
+            </h1>
+            <p className="text-slate-500">
+              View and manage all verified documents with complete verification details and credentials.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-500">
+              Last updated: {format(lastRefresh, "HH:mm:ss")}
+            </div>
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -278,8 +339,13 @@ function VerifiedDocumentsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="mt-4 text-sm text-slate-600">
-            Showing {filteredDocuments.length} of {documents.length} verified documents
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-slate-600">
+              Showing {filteredDocuments.length} of {documents.length} verified documents
+            </div>
+            <div className="text-xs text-slate-500">
+              Auto-refreshes every 30 seconds • Last refresh: {format(lastRefresh, "HH:mm:ss")}
+            </div>
           </div>
         </CardContent>
       </Card>

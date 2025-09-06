@@ -72,6 +72,85 @@ router.post('/generate-license-proof', authenticateToken, async (req, res) => {
 });
 
 /**
+ * POST /api/zkp/generate-agency-proof
+ * Generate a ZKP proof for a specific agency (Regulator only)
+ */
+router.post('/generate-agency-proof', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a regulator
+    if (req.user?.role !== 'Regulator') {
+      return res.status(403).json({
+        error: 'Only regulators can generate proofs for agencies'
+      });
+    }
+
+    const { agency_id, license_number } = req.body;
+
+    if (!agency_id || !license_number) {
+      return res.status(400).json({
+        error: 'Both agency_id and license_number are required'
+      });
+    }
+
+    // Validate license number format (basic validation)
+    if (typeof license_number !== 'string' || license_number.length < 5) {
+      return res.status(400).json({
+        error: 'Invalid license number format'
+      });
+    }
+
+    // Validate agency exists and is an AgencyAdmin
+    // This would typically involve a database query to verify the agency
+    // For now, we'll assume the agency_id is valid
+
+    // Generate the ZKP proof using simplified service
+    const result = await zkpService.generateLicenseProofForAgency(license_number, agency_id, req.user.id);
+
+    res.json({
+      message: 'License proof generated successfully for agency',
+      proof: result.proof,
+      publicSignals: result.publicSignals,
+      proofId: result.proofId,
+      agency_id: agency_id,
+      generated_by_regulator: req.user.id,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error generating agency proof:', error);
+    
+    // Handle specific error cases
+    if (error instanceof Error) {
+      if (error.message.includes('No valid licenses found')) {
+        return res.status(404).json({
+          error: 'No valid license registry found',
+          message: 'Please update the license registry first'
+        });
+      }
+      
+      if (error.message.includes('circuit files not found')) {
+        return res.status(500).json({
+          error: 'ZKP system not initialized',
+          message: 'Please run the ZKP circuit setup'
+        });
+      }
+
+      if (error.message.includes('Agency not found')) {
+        return res.status(404).json({
+          error: 'Agency not found',
+          message: 'The specified agency does not exist'
+        });
+      }
+    }
+
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * POST /api/zkp/verify-license-proof
  * Verify a ZKP proof (Public endpoint)
  */

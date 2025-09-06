@@ -71,12 +71,34 @@ class ZKPService {
             }
             // Convert license strings to numbers for the circuit
             const licenseToNumber = (license) => {
-                if (license === '0')
+                if (license === '0' || license === 0)
                     return '0';
-                // Convert license string to a number by hashing or simple conversion
-                // For demo purposes, extract numbers from license string
-                const match = license.match(/\d+/);
-                return match ? match[0] : '0';
+                
+                // If it's already a number, return as string
+                if (typeof license === 'number') {
+                    return license.toString();
+                }
+                
+                // Convert license string to a consistent number
+                if (typeof license === 'string') {
+                    // Extract numbers from license string (e.g., "LIC2100411" -> "2100411")
+                    const match = license.match(/\d+/);
+                    if (match && match[0]) {
+                        // Ensure the number is within a reasonable range for the circuit
+                        const num = parseInt(match[0]);
+                        return num.toString();
+                    }
+                }
+                
+                // Fallback: convert string to a hash-like number
+                let hash = 0;
+                const str = license.toString();
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+                return Math.abs(hash).toString();
             };
             // Prepare circuit inputs
             const circuitInputs = {
@@ -139,6 +161,150 @@ class ZKPService {
             throw error;
         }
     }
+    /**
+     * Generate a ZKP proof for a specific agency (Regulator only)
+     * @param licenseNumber - The agency's license number (private input)
+     * @param agencyId - The agency's database ID
+     * @param regulatorId - The regulator's user ID who is generating the proof
+     * @returns Promise<ZKPProof>
+     */
+    async generateLicenseProofForAgency(licenseNumber, agencyId, regulatorId) {
+        try {
+            console.log(`🔐 Regulator ${regulatorId} generating ZKP proof for agency ${agencyId} with license: ${licenseNumber}`);
+            
+            // Verify that the agency exists and is an AgencyAdmin
+            const { data: agencyData, error: agencyError } = await supabase_1.supabase
+                .from('users')
+                .select('id, name, email, role, blockchain_address')
+                .eq('id', agencyId)
+                .eq('role', 'AgencyAdmin')
+                .single();
+
+            if (agencyError || !agencyData) {
+                throw new Error('Agency not found or is not an AgencyAdmin');
+            }
+
+            // Check if circuit files exist
+            if (!fs.existsSync(this.circuitWasmPath) || !fs.existsSync(this.circuitZkeyPath)) {
+                throw new Error('ZKP circuit files not found. Run: node scripts/setup-zkp-circuit.js');
+            }
+
+            // Get valid licenses from database (this would be the public input)
+            const validLicenses = await this.getValidLicenses();
+            if (validLicenses.length === 0) {
+                throw new Error('No valid licenses found in database');
+            }
+
+            // Verify that the provided license number is in the valid licenses list
+            if (!validLicenses.includes(licenseNumber)) {
+                throw new Error(`License number ${licenseNumber} is not in the valid licenses registry`);
+            }
+
+            // Pad the valid licenses array to exactly 10 elements (as expected by circuit)
+            const paddedLicenses = [...validLicenses];
+            while (paddedLicenses.length < 10) {
+                paddedLicenses.push('0'); // Pad with zeros
+            }
+
+            // Convert license strings to numbers for the circuit
+            const licenseToNumber = (license) => {
+                if (license === '0' || license === 0)
+                    return '0';
+                
+                // If it's already a number, return as string
+                if (typeof license === 'number') {
+                    return license.toString();
+                }
+                
+                // Convert license string to a consistent number
+                if (typeof license === 'string') {
+                    // Extract numbers from license string (e.g., "LIC2100411" -> "2100411")
+                    const match = license.match(/\d+/);
+                    if (match && match[0]) {
+                        // Ensure the number is within a reasonable range for the circuit
+                        const num = parseInt(match[0]);
+                        return num.toString();
+                    }
+                }
+                
+                // Fallback: convert string to a hash-like number
+                let hash = 0;
+                const str = license.toString();
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+                return Math.abs(hash).toString();
+            };
+
+            // Prepare circuit inputs
+            const circuitInputs = {
+                licenseNumber: licenseToNumber(licenseNumber),
+                validLicenses: paddedLicenses.slice(0, 10).map(licenseToNumber) // Take only first 10 and convert
+            };
+
+            console.log('🔧 Circuit inputs prepared for agency proof:', {
+                licenseNumber: circuitInputs.licenseNumber,
+                agencyId: agencyId,
+                regulatorId: regulatorId,
+                validLicensesCount: validLicenses.length
+            });
+
+            // Generate the proof using snarkjs
+            const { proof, publicSignals } = await snarkjs.groth16.fullProve(circuitInputs, this.circuitWasmPath, this.circuitZkeyPath);
+
+            console.log('✅ ZKP proof generated successfully for agency by regulator');
+
+            // Store the proof in database with regulator information
+            const { data: proofData, error: proofError } = await supabase_1.supabase
+                .from('zkp_license_proofs')
+                .insert({
+                agency_id: agencyId,
+                agency_address: agencyData.blockchain_address || 'unknown',
+                license_number: licenseNumber,
+                proof_data: JSON.stringify(proof),
+                public_signals: JSON.stringify(publicSignals),
+                merkle_root: 'simple_list', // For simple membership proof
+                circuit_type: 'regulator_generated',
+                is_valid: true,
+                verified_at: new Date().toISOString(),
+                expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+                created_by: regulatorId, // Track who generated this proof
+                metadata: JSON.stringify({
+                    generated_by_regulator: regulatorId,
+                    agency_name: agencyData.name,
+                    agency_email: agencyData.email,
+                    generation_type: 'regulator_controlled'
+                })
+            })
+                .select()
+                .single();
+
+            if (proofError) {
+                console.error('Error storing regulator-generated proof:', proofError);
+                throw proofError;
+            }
+
+            return {
+                proof,
+                publicSignals,
+                proofId: proofData.id,
+                agencyInfo: {
+                    id: agencyData.id,
+                    name: agencyData.name,
+                    email: agencyData.email,
+                    blockchain_address: agencyData.blockchain_address
+                },
+                generatedBy: regulatorId
+            };
+        }
+        catch (error) {
+            console.error('❌ Error generating ZKP proof for agency:', error);
+            throw error;
+        }
+    }
+
     /**
      * Verify a ZKP proof
      * @param proof - The proof object
@@ -249,6 +415,75 @@ class ZKPService {
         }
         catch (error) {
             console.error('Error getting agency proofs:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get all generated ZKP proofs (Regulator only)
+     * @returns Promise<any[]>
+     */
+    async getAllGeneratedProofs() {
+        try {
+            const { data, error } = await supabase_1.supabase
+                .from('zkp_license_proofs')
+                .select(`
+                    id,
+                    agency_id,
+                    agency_address,
+                    license_number,
+                    circuit_type,
+                    is_valid,
+                    verified_at,
+                    expires_at,
+                    created_by,
+                    metadata,
+                    created_at,
+                    updated_at,
+                    users!zkp_license_proofs_agency_id_fkey (
+                        id,
+                        name,
+                        email,
+                        blockchain_address
+                    ),
+                    regulator:users!zkp_license_proofs_created_by_fkey (
+                        id,
+                        name,
+                        email
+                    )
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            // Format the response to include agency and regulator information
+            const formattedProofs = (data || []).map(proof => ({
+                id: proof.id,
+                proofId: proof.id,
+                agency_id: proof.agency_id,
+                agency_name: proof.users?.name || 'Unknown Agency',
+                agency_email: proof.users?.email || 'Unknown Email',
+                agency_address: proof.agency_address,
+                license_number: proof.license_number,
+                circuit_type: proof.circuit_type,
+                is_valid: proof.is_valid,
+                verified_at: proof.verified_at,
+                expires_at: proof.expires_at,
+                created_by: proof.created_by,
+                regulator_name: proof.regulator?.name || 'Unknown Regulator',
+                regulator_email: proof.regulator?.email || 'Unknown Email',
+                metadata: proof.metadata,
+                created_at: proof.created_at,
+                updated_at: proof.updated_at,
+                status: proof.is_valid && new Date(proof.expires_at) > new Date() ? 'Valid' : 'Expired'
+            }));
+
+            return formattedProofs;
+        }
+        catch (error) {
+            console.error('Error getting all generated proofs:', error);
             return [];
         }
     }

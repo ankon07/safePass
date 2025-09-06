@@ -54,59 +54,146 @@ router.post('/regulator/issue-credential', auth_1.authenticateToken, async (req,
         };
         const credentialType = credentialTypeMap[documentUpload.document_type] || 'VerifiedDocumentCredential';
         // Create the verifiable credential
-        console.log('Creating verifiable credential...');
-        const verifiableCredential = await agent.createVerifiableCredential({
-            credential: {
-                issuer: { id: req.user.did }, // The regulator's DID
-                credentialSubject: {
-                    id: holderDid, // The worker's DID
-                    documentType: documentUpload.document_type,
-                    ipfsCid: documentUpload.ipfs_cid,
-                    verificationDate: new Date().toISOString(),
-                    ...claims, // Additional claims provided by the regulator
+        console.log('🔧 DEBUG: Starting credential creation...');
+        console.log('🔧 DEBUG: Document ID:', documentUploadId);
+        console.log('🔧 DEBUG: Holder DID:', holderDid);
+        console.log('🔧 DEBUG: Issuer DID:', req.user.did);
+        console.log('🔧 DEBUG: Document type:', documentUpload.document_type);
+        let verifiableCredential;
+        try {
+            verifiableCredential = await agent.createVerifiableCredential({
+                credential: {
+                    issuer: { id: req.user.did }, // The regulator's DID
+                    credentialSubject: {
+                        id: holderDid, // The worker's DID
+                        documentType: documentUpload.document_type,
+                        ipfsCid: documentUpload.ipfs_cid,
+                        verificationDate: new Date().toISOString(),
+                        ...claims, // Additional claims provided by the regulator
+                    },
+                    '@context': [
+                        'https://www.w3.org/2018/credentials/v1',
+                        'https://safepass.example.com/contexts/v1'
+                    ],
+                    type: ['VerifiableCredential', credentialType],
+                    issuanceDate: new Date().toISOString(),
                 },
-                '@context': [
-                    'https://www.w3.org/2018/credentials/v1',
-                    'https://safepass.example.com/contexts/v1'
-                ],
-                type: ['VerifiableCredential', credentialType],
-                issuanceDate: new Date().toISOString(),
-            },
-            proofFormat: 'jwt',
-        });
-        console.log('Verifiable credential created:', verifiableCredential);
-        // Save the verifiable credential to database
-        const { data: savedCredential, error: credError } = await supabase_1.supabase
-            .from('verifiable_credentials')
-            .insert({
-            holder_did: holderDid,
-            issuer_did: req.user.did,
-            type: credentialType,
-            raw_vc_jwt: verifiableCredential.proof.jwt,
-            source_document_id: documentUploadId
-        })
-            .select()
-            .single();
-        if (credError) {
-            console.error('Error saving credential:', credError);
+                proofFormat: 'jwt',
+            });
+            console.log('✅ DEBUG: Verifiable credential created successfully');
+            console.log('🔧 DEBUG: Credential JWT length:', verifiableCredential.proof.jwt.length);
+        }
+        catch (credentialError) {
+            console.error('❌ DEBUG: Error creating credential:', credentialError);
+            const errorMessage = credentialError instanceof Error ? credentialError.message : 'Unknown error';
             return res.status(500).json({
-                error: 'Failed to save verifiable credential.'
+                error: 'Failed to create verifiable credential.',
+                details: errorMessage
+            });
+        }
+        // Save the verifiable credential to database
+        console.log('🔧 DEBUG: Starting credential save to database...');
+        let savedCredential;
+        try {
+            const { data, error: credError } = await supabase_1.supabase
+                .from('verifiable_credentials')
+                .insert({
+                holder_did: holderDid,
+                issuer_did: req.user.did,
+                type: credentialType,
+                raw_vc_jwt: verifiableCredential.proof.jwt,
+                source_document_id: documentUploadId
+            })
+                .select()
+                .single();
+            if (credError) {
+                console.error('❌ DEBUG: Error saving credential to database:', credError);
+                console.error('❌ DEBUG: Credential save error details:', JSON.stringify(credError, null, 2));
+                return res.status(500).json({
+                    error: 'Failed to save verifiable credential.',
+                    details: credError.message
+                });
+            }
+            savedCredential = data;
+            console.log('✅ DEBUG: Credential saved successfully with ID:', savedCredential.id);
+        }
+        catch (saveError) {
+            console.error('❌ DEBUG: Exception during credential save:', saveError);
+            const errorMessage = saveError instanceof Error ? saveError.message : 'Unknown error';
+            return res.status(500).json({
+                error: 'Exception during credential save.',
+                details: errorMessage
             });
         }
         // Update document status to verified
-        const { error: updateError } = await supabase_1.supabase
-            .from('document_uploads')
-            .update({
-            status: 'Verified',
-            reviewed_at: new Date().toISOString(),
-            reviewer_id: req.user.id,
-            reviewer_notes: `Document verified and credential issued by ${req.user.email}`
-        })
-            .eq('id', documentUploadId);
-        if (updateError) {
-            console.error('Error updating document status:', updateError);
+        console.log('🔧 DEBUG: Starting document status update...');
+        console.log('🔧 DEBUG: Updating document ID:', documentUploadId);
+        console.log('🔧 DEBUG: Setting status to: Verified');
+        console.log('🔧 DEBUG: Reviewer ID:', req.user.id);
+        console.log('🔧 DEBUG: Reviewer email:', req.user.email);
+        try {
+            const updateData = {
+                status: 'Verified',
+                reviewed_at: new Date().toISOString(),
+                reviewer_id: req.user.id,
+                reviewer_notes: `Document verified and credential issued by ${req.user.email}`
+            };
+            console.log('🔧 DEBUG: Update data:', JSON.stringify(updateData, null, 2));
+            const { data: updateResult, error: updateError } = await supabase_1.supabase
+                .from('document_uploads')
+                .update(updateData)
+                .eq('id', documentUploadId)
+                .select();
+            if (updateError) {
+                console.error('❌ DEBUG: Error updating document status:', updateError);
+                console.error('❌ DEBUG: Update error details:', JSON.stringify(updateError, null, 2));
+                console.error('❌ DEBUG: Update error code:', updateError.code);
+                console.error('❌ DEBUG: Update error message:', updateError.message);
+                console.error('❌ DEBUG: Update error hint:', updateError.hint);
+                console.error('❌ DEBUG: Update error details:', updateError.details);
+                // Try to rollback the credential save
+                console.log('🔄 DEBUG: Attempting to rollback credential save...');
+                try {
+                    await supabase_1.supabase
+                        .from('verifiable_credentials')
+                        .delete()
+                        .eq('id', savedCredential.id);
+                    console.log('✅ DEBUG: Credential rollback successful');
+                }
+                catch (rollbackError) {
+                    console.error('❌ DEBUG: Credential rollback failed:', rollbackError);
+                }
+                return res.status(500).json({
+                    error: 'Failed to update document status.',
+                    details: updateError.message,
+                    code: updateError.code,
+                    hint: updateError.hint
+                });
+            }
+            console.log('✅ DEBUG: Document status updated successfully');
+            console.log('🔧 DEBUG: Update result:', JSON.stringify(updateResult, null, 2));
+        }
+        catch (updateException) {
+            console.error('❌ DEBUG: Exception during document update:', updateException);
+            if (updateException instanceof Error) {
+                console.error('❌ DEBUG: Exception stack:', updateException.stack);
+            }
+            // Try to rollback the credential save
+            console.log('🔄 DEBUG: Attempting to rollback credential save due to exception...');
+            try {
+                await supabase_1.supabase
+                    .from('verifiable_credentials')
+                    .delete()
+                    .eq('id', savedCredential.id);
+                console.log('✅ DEBUG: Credential rollback successful');
+            }
+            catch (rollbackError) {
+                console.error('❌ DEBUG: Credential rollback failed:', rollbackError);
+            }
+            const errorMessage = updateException instanceof Error ? updateException.message : 'Unknown error';
             return res.status(500).json({
-                error: 'Failed to update document status.'
+                error: 'Exception during document status update.',
+                details: errorMessage
             });
         }
         res.status(201).json({

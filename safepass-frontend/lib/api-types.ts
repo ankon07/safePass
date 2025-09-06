@@ -431,6 +431,190 @@ export interface RegisterContractResponse {
   address: string;
 }
 
+// Merkle Verification Types
+export interface MerkleProof {
+  position: 'left' | 'right';
+  data: string;
+}
+
+export interface MerkleProofResponse {
+  success: boolean;
+  data: {
+    transactionHash: string;
+    batchId: number;
+    merkleRoot: string;
+    proof: MerkleProof[];
+    leafIndex: number;
+    sepoliaContract: string;
+    sepoliaTxHash: string;
+    anchoredAt: string;
+    verificationUrl: string;
+  };
+  message: string;
+}
+
+export interface MerkleVerifyRequest {
+  transactionHash: string;
+  proof: MerkleProof[];
+  merkleRoot: string;
+  batchId: number;
+}
+
+export interface MerkleVerifyResponse {
+  success: boolean;
+  verified: boolean;
+  verification: {
+    local: boolean;
+    sepolia: boolean;
+    sepoliaDetails: {
+      verified: boolean;
+      actualRoot: string;
+      exists: boolean;
+      contractAddress: string;
+    };
+  };
+  transactionHash: string;
+  batchId: number;
+  merkleRoot: string;
+  verifiedAt: string;
+  etherscanUrl: string | null;
+}
+
+export interface AnchoringBatch {
+  batch_id: number;
+  merkle_root: string;
+  transaction_count: number;
+  anchored_at: string;
+  sepolia_tx_hash: string;
+  sepolia_block_number: number;
+  besu_start_block?: number;
+  besu_end_block?: number;
+}
+
+export interface BatchDetailsResponse {
+  success: boolean;
+  data: {
+    batch: AnchoringBatch;
+    transactions: Array<{
+      transaction_hash: string;
+      besu_block_number: number;
+      transaction_index: number;
+      leaf_index: number;
+    }>;
+    etherscanUrl: string;
+  };
+}
+
+export interface BatchesResponse {
+  success: boolean;
+  data: {
+    batches: AnchoringBatch[];
+    pagination: {
+      page: number;
+      limit: number;
+      totalBatches: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  };
+}
+
+export interface AnchoringStatusResponse {
+  success: boolean;
+  status: {
+    totalBatches: number;
+    totalTransactions: number;
+    lastAnchoredAt: string | null;
+    latestBatch: AnchoringBatch | null;
+    sepoliaContract: string;
+    serviceStatus: {
+      service_name: string;
+      last_run_at: string | null;
+      last_success_at: string | null;
+      last_error_at: string | null;
+      last_error_message: string | null;
+      next_scheduled_run: string | null;
+    } | null;
+    lastUpdate: string;
+  };
+}
+
+export interface VerificationStatsResponse {
+  success: boolean;
+  data: {
+    overview: {
+      totalBatches: number;
+      totalTransactions: number;
+      firstAnchorDate: string | null;
+      lastAnchorDate: string | null;
+      avgTransactionsPerBatch: number;
+      maxTransactionsPerBatch: number;
+    };
+    recentActivity: Array<{
+      date: string;
+      batches: number;
+      transactions: number;
+    }>;
+    sepoliaContract: string;
+    generatedAt: string;
+  };
+}
+
+export interface TransactionSearchResponse {
+  success: boolean;
+  data: {
+    query: string;
+    results: Array<{
+      transaction_hash: string;
+      batch_id: number;
+      merkle_root: string;
+      anchored_at: string;
+      sepolia_tx_hash: string;
+    }>;
+    count: number;
+  };
+}
+
+export interface TransactionValidationResponse {
+  success: boolean;
+  data: {
+    transactionHash: string;
+    isValid: boolean;
+    format: 'valid' | 'invalid';
+    requirements: {
+      startsWithOx: boolean;
+      correctLength: boolean;
+      hexadecimal: boolean;
+    };
+  };
+}
+
+export interface AnchoringHealthResponse {
+  success: boolean;
+  data: {
+    service: string;
+    status: any;
+    statistics: any;
+    connectivity: {
+      besu: boolean;
+      sepolia: boolean;
+    };
+    configuration: any;
+    isRunning: boolean;
+    schedulerActive: boolean;
+    timestamp: string;
+  };
+}
+
+export interface ManualAnchoringResponse {
+  success: boolean;
+  message: string;
+  triggeredBy: string;
+  triggeredAt: string;
+  note: string;
+}
+
 // Generic API Response wrapper
 export interface ApiResponse<T> {
   data?: T;

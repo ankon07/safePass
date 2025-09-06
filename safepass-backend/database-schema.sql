@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) NOT NULL CHECK (role IN ('Worker', 'AgencyAdmin', 'Regulator')),
     did VARCHAR(255) UNIQUE NOT NULL,
     encrypted_private_key_hex TEXT NOT NULL,
+    worker_address VARCHAR(255), -- Blockchain address for Worker users
+    agency_address VARCHAR(255), -- Blockchain address for AgencyAdmin users
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -62,6 +64,8 @@ SELECT
     name,
     role,
     did,
+    worker_address,
+    agency_address,
     created_at,
     updated_at
 FROM users;

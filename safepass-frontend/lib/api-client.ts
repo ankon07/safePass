@@ -42,6 +42,17 @@ import {
   BlockchainCredentialDetails,
   DeployContractResponse,
   RegisterContractResponse,
+  MerkleProofResponse,
+  MerkleVerifyRequest,
+  MerkleVerifyResponse,
+  BatchDetailsResponse,
+  BatchesResponse,
+  AnchoringStatusResponse,
+  VerificationStatsResponse,
+  TransactionSearchResponse,
+  TransactionValidationResponse,
+  AnchoringHealthResponse,
+  ManualAnchoringResponse,
 } from './api-types';
 
 class SafePassAPIClient {
@@ -203,11 +214,15 @@ class SafePassAPIClient {
   }
 
   async getPendingDocuments(): Promise<DocumentsResponse> {
-    return this.request<DocumentsResponse>('/api/regulator/documents/pending');
+    // Add cache-busting parameter to ensure fresh data
+    const timestamp = new Date().getTime();
+    return this.request<DocumentsResponse>(`/api/regulator/documents/pending?_t=${timestamp}`);
   }
 
   async getVerifiedDocuments(): Promise<DocumentsResponse> {
-    return this.request<DocumentsResponse>('/api/regulator/documents/verified');
+    // Add cache-busting parameter to ensure fresh data
+    const timestamp = new Date().getTime();
+    return this.request<DocumentsResponse>(`/api/regulator/documents/verified?_t=${timestamp}`);
   }
 
   // Credential Management Methods
@@ -312,6 +327,16 @@ class SafePassAPIClient {
     });
   }
 
+  async generateLicenseProofForAgency(agencyId: string, licenseNumber: string): Promise<GenerateLicenseProofResponse> {
+    return this.request<GenerateLicenseProofResponse>('/api/zkp/generate-agency-proof', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        agency_id: agencyId, 
+        license_number: licenseNumber 
+      }),
+    });
+  }
+
   async verifyLicenseProof(request: VerifyLicenseProofRequest): Promise<VerifyLicenseProofResponse> {
     return this.request<VerifyLicenseProofResponse>('/api/zkp/verify-license-proof', {
       method: 'POST',
@@ -322,6 +347,10 @@ class SafePassAPIClient {
 
   async getAgencyZKPProofs(): Promise<AgencyZKPProofsResponse> {
     return this.request<AgencyZKPProofsResponse>('/api/zkp/my-proofs');
+  }
+
+  async getGeneratedProofs(): Promise<{ proofs: any[]; count: number; timestamp: string }> {
+    return this.request<{ proofs: any[]; count: number; timestamp: string }>('/api/zkp/generated-proofs');
   }
 
   async updateValidLicenses(licenseNumbers: string[]): Promise<any> {
@@ -581,6 +610,77 @@ class SafePassAPIClient {
       method: 'POST',
       body: JSON.stringify({ contract_addresses: contractAddresses }),
     });
+  }
+
+  // Merkle Verification Methods
+  async generateMerkleProof(transactionHash: string): Promise<MerkleProofResponse> {
+    return this.request<MerkleProofResponse>(`/api/verification/proof/${transactionHash}`, {
+      skipAuth: true,
+    });
+  }
+
+  async verifyMerkleProof(verifyRequest: MerkleVerifyRequest): Promise<MerkleVerifyResponse> {
+    return this.request<MerkleVerifyResponse>('/api/verification/verify', {
+      method: 'POST',
+      body: JSON.stringify(verifyRequest),
+      skipAuth: true,
+    });
+  }
+
+  async getAnchoringStatus(): Promise<AnchoringStatusResponse> {
+    return this.request<AnchoringStatusResponse>('/api/verification/status', {
+      skipAuth: true,
+    });
+  }
+
+  async getBatchDetails(batchId: number): Promise<BatchDetailsResponse> {
+    return this.request<BatchDetailsResponse>(`/api/verification/batch/${batchId}`, {
+      skipAuth: true,
+    });
+  }
+
+  async getAllBatches(page?: number, limit?: number): Promise<BatchesResponse> {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
+    return this.request<BatchesResponse>(`/api/verification/batches${queryString}`, {
+      skipAuth: true,
+    });
+  }
+
+  async searchTransactions(query: string, limit?: number): Promise<TransactionSearchResponse> {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (limit) params.append('limit', limit.toString());
+    
+    return this.request<TransactionSearchResponse>(`/api/verification/search?${params.toString()}`, {
+      skipAuth: true,
+    });
+  }
+
+  async getVerificationStats(): Promise<VerificationStatsResponse> {
+    return this.request<VerificationStatsResponse>('/api/verification/stats', {
+      skipAuth: true,
+    });
+  }
+
+  async validateTransactionHash(transactionHash: string): Promise<TransactionValidationResponse> {
+    return this.request<TransactionValidationResponse>(`/api/verification/validate/${transactionHash}`, {
+      skipAuth: true,
+    });
+  }
+
+  // Admin-only verification methods
+  async triggerManualAnchoring(): Promise<ManualAnchoringResponse> {
+    return this.request<ManualAnchoringResponse>('/api/verification/anchor/trigger', {
+      method: 'POST',
+    });
+  }
+
+  async getAnchoringHealth(): Promise<AnchoringHealthResponse> {
+    return this.request<AnchoringHealthResponse>('/api/verification/anchor/health');
   }
 
   // Utility Methods
