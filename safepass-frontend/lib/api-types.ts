@@ -8,6 +8,7 @@ export interface User {
   did: string;
   created_at: string;
   agency_address?: string; // Blockchain address for AgencyAdmin users
+  worker_address?: string; // Blockchain address for Worker users
 }
 
 export interface LoginRequest {
@@ -167,7 +168,19 @@ export interface VerifyLicenseProofRequest {
 }
 
 export interface VerifyLicenseProofResponse {
-  isValid: boolean;
+  proof_id: string;
+  is_valid: boolean;
+  agency_info: {
+    name: string;
+    email: string;
+    blockchain_address: string;
+    license_verified: boolean;
+  };
+  verification_details: {
+    verified_at: string;
+    expires_at: string;
+    circuit_type: string;
+  };
   message: string;
   timestamp: string;
 }
@@ -328,6 +341,94 @@ export interface CreateJobRequest {
 export interface ApplyJobRequest {
   jobId: string;
   coverLetter?: string;
+}
+
+// Escrow Types
+export interface EscrowDeposit {
+  id: string;
+  employment_contract_address: string;
+  employer_address: string;
+  worker_address: string;
+  deposit_amount: number;
+  transaction_hash: string;
+  status: 'Active' | 'Released' | 'Disputed';
+  created_at: string;
+  updated_at?: string;
+  release_reason?: string;
+}
+
+export interface EscrowStatistics {
+  total_deposits: number;
+  total_amount: number;
+  active_deposits: number;
+  active_amount: number;
+  released_deposits: number;
+  released_amount: number;
+  disputed_deposits: number;
+  disputed_amount: number;
+}
+
+export interface EscrowComplianceResult {
+  compliant: string[];
+  nonCompliant: string[];
+}
+
+// Contract Details Types
+export interface ContractDetails {
+  worker: string;
+  employer: string;
+  salary: string;
+  payFrequency: string;
+  nextPaymentDueDate: string;
+  escrowRequirement: string;
+  escrowDeposited: boolean;
+  escrowContract: string;
+  status: string;
+  paymentStatus: string;
+  workerSigned: boolean;
+  employerSigned: boolean;
+}
+
+export interface ContractTestResult {
+  paymentCount: string;
+  isReadyForActivation: boolean;
+  message: string;
+}
+
+// Blockchain Event Types
+export interface BlockchainEvent {
+  blockNumber: string;
+  transactionHash: string;
+  args: any;
+  topics: string[];
+}
+
+export interface ContractEventsResponse {
+  contractName: string;
+  eventName: string;
+  fromBlock: number | string;
+  toBlock: number | string;
+  events: BlockchainEvent[];
+}
+
+// Enhanced Blockchain Types
+export interface BlockchainCredentialDetails {
+  credentialId: string;
+  status: string;
+  issuer: string;
+}
+
+export interface DeployContractResponse {
+  success: boolean;
+  message: string;
+  address: string;
+  constructorArgs: any[];
+}
+
+export interface RegisterContractResponse {
+  success: boolean;
+  message: string;
+  address: string;
 }
 
 // Generic API Response wrapper

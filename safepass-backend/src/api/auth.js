@@ -123,7 +123,7 @@ router.post('/login', async (req, res) => {
         // Find user by email
         const { data: user, error: findError } = await supabase_1.supabase
             .from('users')
-            .select('id, email, password_hash, name, role, did')
+            .select('id, email, password_hash, name, role, did, worker_address, agency_address')
             .eq('email', email)
             .single();
         if (findError || !user) {
@@ -151,6 +151,8 @@ router.post('/login', async (req, res) => {
                 name: user.name,
                 role: user.role,
                 did: user.did,
+                worker_address: user.worker_address,
+                agency_address: user.agency_address,
             },
         });
     }
@@ -168,7 +170,7 @@ router.get('/me', auth_1.authenticateToken, async (req, res) => {
         // Fetch full user profile from database
         const { data: user, error } = await supabase_1.supabase
             .from('users')
-            .select('id, email, name, role, did, created_at')
+            .select('id, email, name, role, did, worker_address, agency_address, created_at')
             .eq('id', req.user.id)
             .single();
         if (error || !user) {
@@ -180,6 +182,8 @@ router.get('/me', auth_1.authenticateToken, async (req, res) => {
             name: user.name,
             role: user.role,
             did: user.did,
+            worker_address: user.worker_address,
+            agency_address: user.agency_address,
             created_at: user.created_at,
         };
         res.status(200).json({

@@ -29,7 +29,8 @@ import {
 import { format } from "date-fns";
 import { useAuth, withAuth } from "@/lib/auth-context";
 import { apiClient } from "@/lib/api-client";
-import { Document } from "@/lib/api-types";
+import { Document, IssueCredentialResponse } from "@/lib/api-types";
+import { CredentialShareModal } from "@/components/shared/CredentialShareModal";
 
 function DocumentReviewPage() {
   const { user } = useAuth();
@@ -41,6 +42,11 @@ function DocumentReviewPage() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  
+  // Credential sharing modal state
+  const [credentialShareModalOpen, setCredentialShareModalOpen] = useState(false);
+  const [issuedCredential, setIssuedCredential] = useState<IssueCredentialResponse["data"] | null>(null);
+  const [credentialWorkerInfo, setCredentialWorkerInfo] = useState<{name?: string; email?: string}>({});
 
   useEffect(() => {
     fetchPendingDocuments();
@@ -65,7 +71,7 @@ function DocumentReviewPage() {
       setProcessingDoc(document.id);
       
       // Issue credential for approved document
-      await apiClient.issueCredential({
+      const credentialResponse = await apiClient.issueCredential({
         documentUploadId: document.id,
         holderDid: document.worker?.did || '',
         claims: {
@@ -75,11 +81,21 @@ function DocumentReviewPage() {
         }
       });
 
+      // Store credential data for sharing modal
+      setIssuedCredential(credentialResponse.data);
+      setCredentialWorkerInfo({
+        name: document.worker?.name,
+        email: document.worker?.email,
+      });
+
       // Refresh the documents list
       await fetchPendingDocuments();
       setDialogOpen(false);
       setSelectedDoc(null);
       setReviewNotes("");
+
+      // Show credential sharing modal
+      setCredentialShareModalOpen(true);
     } catch (err) {
       console.error('Error approving document:', err);
       setError('Failed to approve document. Please try again.');
@@ -335,6 +351,15 @@ function DocumentReviewPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Credential Share Modal */}
+      <CredentialShareModal
+        open={credentialShareModalOpen}
+        onOpenChange={setCredentialShareModalOpen}
+        credential={issuedCredential}
+        workerName={credentialWorkerInfo.name}
+        workerEmail={credentialWorkerInfo.email}
+      />
     </div>
   );
 }

@@ -7,28 +7,56 @@ class InsuranceService {
      * Register or update an insurance bond for an agency
      */
     async registerInsuranceBond(bondData) {
-        const { data, error } = await supabase_1.supabase
-            .from('agency_insurance_bonds')
-            .upsert({
-            ...bondData,
-            is_active: true,
-            updated_at: new Date().toISOString()
-        }, {
-            onConflict: 'agency_address'
-        })
-            .select()
-            .single();
-        if (error) {
-            throw new Error(`Failed to register insurance bond: ${error.message}`);
+        // First check if bond already exists for this agency
+        const existingBond = await this.getInsuranceBond(bondData.agency_address);
+        if (existingBond) {
+            // Update existing bond
+            const { data, error } = await supabase_1.supabase
+                .from('insurance_bonds')
+                .update({
+                policy_number: bondData.policy_number,
+                coverage_amount: bondData.coverage_amount,
+                expiry_date: bondData.expiry_date,
+                provider: bondData.insurance_provider,
+                verifiable_credential: bondData.credential_jwt,
+                status: 'Active',
+                updated_at: new Date().toISOString()
+            })
+                .eq('agency_address', bondData.agency_address)
+                .select()
+                .single();
+            if (error) {
+                throw new Error(`Failed to update insurance bond: ${error.message}`);
+            }
+            return data;
         }
-        return data;
+        else {
+            // Insert new bond
+            const { data, error } = await supabase_1.supabase
+                .from('insurance_bonds')
+                .insert({
+                agency_address: bondData.agency_address,
+                policy_number: bondData.policy_number,
+                coverage_amount: bondData.coverage_amount,
+                expiry_date: bondData.expiry_date,
+                provider: bondData.insurance_provider,
+                verifiable_credential: bondData.credential_jwt,
+                status: 'Active'
+            })
+                .select()
+                .single();
+            if (error) {
+                throw new Error(`Failed to register insurance bond: ${error.message}`);
+            }
+            return data;
+        }
     }
     /**
      * Get insurance bond for an agency
      */
     async getInsuranceBond(agencyAddress) {
         const { data, error } = await supabase_1.supabase
-            .from('agency_insurance_bonds')
+            .from('insurance_bonds')
             .select('*')
             .eq('agency_address', agencyAddress)
             .single();
@@ -42,7 +70,7 @@ class InsuranceService {
      */
     async verifyInsuranceStatus(agencyAddress) {
         const bond = await this.getInsuranceBond(agencyAddress);
-        if (!bond || !bond.is_active) {
+        if (!bond || bond.status !== 'Active') {
             return false;
         }
         const expiryDate = new Date(bond.expiry_date);
@@ -54,9 +82,9 @@ class InsuranceService {
      */
     async getAgenciesWithExpiredInsurance() {
         const { data, error } = await supabase_1.supabase
-            .from('agency_insurance_bonds')
+            .from('insurance_bonds')
             .select('*')
-            .or(`expiry_date.lt.${new Date().toISOString()},is_active.eq.false`)
+            .or(`expiry_date.lt.${new Date().toISOString()},status.eq.Expired`)
             .gt('coverage_amount', 0);
         if (error) {
             throw new Error(`Failed to get expired insurance bonds: ${error.message}`);
@@ -68,9 +96,9 @@ class InsuranceService {
      */
     async getAgenciesWithValidInsurance() {
         const { data, error } = await supabase_1.supabase
-            .from('agency_insurance_bonds')
+            .from('insurance_bonds')
             .select('*')
-            .eq('is_active', true)
+            .eq('status', 'Active')
             .gt('expiry_date', new Date().toISOString())
             .gt('coverage_amount', 0);
         if (error) {
@@ -83,9 +111,9 @@ class InsuranceService {
      */
     async deactivateInsuranceBond(agencyAddress) {
         const { error } = await supabase_1.supabase
-            .from('agency_insurance_bonds')
+            .from('insurance_bonds')
             .update({
-            is_active: false,
+            status: 'Cancelled',
             updated_at: new Date().toISOString()
         })
             .eq('agency_address', agencyAddress);
@@ -187,7 +215,7 @@ class InsuranceService {
                 issues
             };
         }
-        if (!bond.is_active) {
+        if (bond.status !== 'Active') {
             issues.push('Insurance bond is inactive');
         }
         const expiryDate = new Date(bond.expiry_date);

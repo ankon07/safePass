@@ -9,6 +9,9 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Award,
+  DollarSign,
+  FileCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +32,14 @@ const navItems = [
   { href: "/a/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/a/jobs", label: "Job Listings", icon: Briefcase },
   { href: "/a/placements", label: "Placements", icon: Users },
+  { href: "/a/documents", label: "Documents", icon: ShieldCheck },
+  { href: "/a/verify-credentials", label: "Verify Credentials", icon: Award },
+  { href: "/a/blockchain", label: "Blockchain", icon: ShieldCheck },
+  { href: "/a/escrow", label: "Escrow Management", icon: DollarSign },
+  { href: "/a/contracts", label: "Contract Management", icon: FileCheck },
+  { href: "/a/zkp", label: "ZKP System", icon: ShieldCheck },
+  { href: "/a/trust-score/advanced", label: "Trust Score", icon: ShieldCheck },
+  { href: "/a/system", label: "System Health", icon: ShieldCheck },
   { href: "/a/settings/profile", label: "Settings", icon: Settings },
 ];
 

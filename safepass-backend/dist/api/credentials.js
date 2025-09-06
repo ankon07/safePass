@@ -93,13 +93,14 @@ router.post('/regulator/issue-credential', auth_1.authenticateToken, async (req,
                 error: 'Failed to save verifiable credential.'
             });
         }
-        // Update document status to approved
+        // Update document status to verified
         const { error: updateError } = await supabase_1.supabase
             .from('document_uploads')
             .update({
-            status: 'Approved',
+            status: 'Verified',
             reviewed_at: new Date().toISOString(),
-            reviewer_id: req.user.id
+            reviewer_id: req.user.id,
+            reviewer_notes: `Document verified and credential issued by ${req.user.email}`
         })
             .eq('id', documentUploadId);
         if (updateError) {

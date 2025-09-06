@@ -33,6 +33,15 @@ import {
   JobApplicationsResponse,
   CreateJobRequest,
   ApplyJobRequest,
+  EscrowDeposit,
+  EscrowStatistics,
+  EscrowComplianceResult,
+  ContractDetails,
+  ContractTestResult,
+  ContractEventsResponse,
+  BlockchainCredentialDetails,
+  DeployContractResponse,
+  RegisterContractResponse,
 } from './api-types';
 
 class SafePassAPIClient {
@@ -220,6 +229,33 @@ class SafePassAPIClient {
     });
   }
 
+  // Agency Admin Document Management Methods
+  async getAgencyWorkerDocuments(): Promise<DocumentsResponse> {
+    return this.request<DocumentsResponse>('/api/agency/documents/workers');
+  }
+
+  async getAgencyPendingDocuments(): Promise<DocumentsResponse> {
+    return this.request<DocumentsResponse>('/api/agency/documents/pending');
+  }
+
+  async approveAgencyDocument(documentUploadId: string, reviewerNotes?: string): Promise<{ message: string; data: any }> {
+    return this.request<{ message: string; data: any }>('/api/agency/documents/approve', {
+      method: 'POST',
+      body: JSON.stringify({ documentUploadId, reviewerNotes }),
+    });
+  }
+
+  async rejectAgencyDocument(documentUploadId: string, reviewerNotes: string): Promise<{ message: string; data: any }> {
+    return this.request<{ message: string; data: any }>('/api/agency/documents/reject', {
+      method: 'POST',
+      body: JSON.stringify({ documentUploadId, reviewerNotes }),
+    });
+  }
+
+  async getAgencyDocumentStatistics(): Promise<{ message: string; data: { totalDocuments: number; pendingDocuments: number; verifiedDocuments: number; rejectedDocuments: number; recentDocuments: number; processingRate: number } }> {
+    return this.request<{ message: string; data: { totalDocuments: number; pendingDocuments: number; verifiedDocuments: number; rejectedDocuments: number; recentDocuments: number; processingRate: number } }>('/api/agency/documents/statistics');
+  }
+
   async verifyCredential(jwt: string): Promise<any> {
     return this.request<any>(`/api/credentials/verify/${jwt}`, {
       skipAuth: true,
@@ -307,6 +343,10 @@ class SafePassAPIClient {
     });
   }
 
+  async verifyLicenseByProofId(proofId: string): Promise<VerifyLicenseProofResponse> {
+    return this.request<VerifyLicenseProofResponse>(`/api/zkp/verify-license-by-proof-id/${proofId}`);
+  }
+
   async initializeZKPSystem(): Promise<any> {
     return this.request<any>('/api/zkp/initialize', {
       method: 'POST',
@@ -330,7 +370,6 @@ class SafePassAPIClient {
     return this.request<any>('/api/blockchain/credentials/issue', {
       method: 'POST',
       body: JSON.stringify({ action }),
-      skipAuth: true,
     });
   }
 
@@ -451,6 +490,97 @@ class SafePassAPIClient {
 
   async getApplicationById(id: string): Promise<{ message: string; data: JobApplication }> {
     return this.request<{ message: string; data: JobApplication }>(`/api/applications/${id}`);
+  }
+
+  // Enhanced Blockchain Methods
+  async getContractDetails(): Promise<{ success: boolean; contractDetails: ContractDetails }> {
+    return this.request<{ success: boolean; contractDetails: ContractDetails }>('/api/blockchain/contract/details', {
+      skipAuth: true,
+    });
+  }
+
+  async testContractMethods(): Promise<{ success: boolean; testResults: ContractTestResult }> {
+    return this.request<{ success: boolean; testResults: ContractTestResult }>('/api/blockchain/contract/test', {
+      skipAuth: true,
+    });
+  }
+
+  async getBlockchainCredentialDetails(credentialId: string): Promise<BlockchainCredentialDetails> {
+    return this.request<BlockchainCredentialDetails>(`/api/blockchain/credentials/${credentialId}`, {
+      skipAuth: true,
+    });
+  }
+
+  // Escrow Management Methods
+  async recordEscrowDeposit(depositData: {
+    employment_contract_address: string;
+    employer_address: string;
+    worker_address: string;
+    deposit_amount: number;
+    transaction_hash: string;
+  }): Promise<{ message: string; data: EscrowDeposit }> {
+    return this.request<{ message: string; data: EscrowDeposit }>('/api/escrow/deposits', {
+      method: 'POST',
+      body: JSON.stringify(depositData),
+    });
+  }
+
+  async getEscrowDeposit(contractAddress: string): Promise<{ message: string; data: EscrowDeposit }> {
+    return this.request<{ message: string; data: EscrowDeposit }>(`/api/escrow/deposits/${contractAddress}`);
+  }
+
+  async getEmployerEscrows(employerAddress: string): Promise<{ message: string; data: EscrowDeposit[]; count: number }> {
+    return this.request<{ message: string; data: EscrowDeposit[]; count: number }>(`/api/escrow/employer/${employerAddress}`);
+  }
+
+  async getWorkerEscrows(workerAddress: string): Promise<{ message: string; data: EscrowDeposit[]; count: number }> {
+    return this.request<{ message: string; data: EscrowDeposit[]; count: number }>(`/api/escrow/worker/${workerAddress}`);
+  }
+
+  async updateEscrowStatus(contractAddress: string, status: 'Released' | 'Disputed', releaseReason?: string): Promise<{ message: string; data: EscrowDeposit }> {
+    return this.request<{ message: string; data: EscrowDeposit }>(`/api/escrow/deposits/${contractAddress}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, release_reason: releaseReason }),
+    });
+  }
+
+  async getActiveEscrows(): Promise<{ message: string; data: EscrowDeposit[]; count: number }> {
+    return this.request<{ message: string; data: EscrowDeposit[]; count: number }>('/api/escrow/active');
+  }
+
+  async getDisputedEscrows(): Promise<{ message: string; data: EscrowDeposit[]; count: number }> {
+    return this.request<{ message: string; data: EscrowDeposit[]; count: number }>('/api/escrow/disputed');
+  }
+
+  async getEscrowStatistics(): Promise<{ message: string; data: EscrowStatistics }> {
+    return this.request<{ message: string; data: EscrowStatistics }>('/api/escrow/statistics');
+  }
+
+  async verifyEscrowSufficiency(contractAddress: string, requiredAmount: number): Promise<{ message: string; data: { employment_contract_address: string; required_amount: number; is_sufficient: boolean; verified_at: string } }> {
+    return this.request<{ message: string; data: { employment_contract_address: string; required_amount: number; is_sufficient: boolean; verified_at: string } }>(`/api/escrow/verify/${contractAddress}/${requiredAmount}`);
+  }
+
+  async getEmployerTotalEscrowed(employerAddress: string): Promise<{ message: string; data: { employer_address: string; total_escrowed: number; retrieved_at: string } }> {
+    return this.request<{ message: string; data: { employer_address: string; total_escrowed: number; retrieved_at: string } }>(`/api/escrow/employer/${employerAddress}/total`);
+  }
+
+  async getEscrowsNeedingAttention(days: number = 90): Promise<{ message: string; data: EscrowDeposit[]; count: number; criteria: string }> {
+    return this.request<{ message: string; data: EscrowDeposit[]; count: number; criteria: string }>(`/api/escrow/attention?days=${days}`);
+  }
+
+  async calculateEscrowRequirement(salary: number, payFrequencyDays: number): Promise<{ message: string; data: { salary: number; pay_frequency_days: number; escrow_requirement: number; calculation_method: string; calculated_at: string } }> {
+    return this.request<{ message: string; data: { salary: number; pay_frequency_days: number; escrow_requirement: number; calculation_method: string; calculated_at: string } }>('/api/escrow/calculate-requirement', {
+      method: 'POST',
+      body: JSON.stringify({ salary, pay_frequency_days: payFrequencyDays }),
+      skipAuth: true,
+    });
+  }
+
+  async checkEscrowCompliance(contractAddresses: string[]): Promise<{ message: string; data: EscrowComplianceResult; summary: { total_contracts: number; compliant_count: number; non_compliant_count: number; compliance_rate: string } }> {
+    return this.request<{ message: string; data: EscrowComplianceResult; summary: { total_contracts: number; compliant_count: number; non_compliant_count: number; compliance_rate: string } }>('/api/escrow/compliance-check', {
+      method: 'POST',
+      body: JSON.stringify({ contract_addresses: contractAddresses }),
+    });
   }
 
   // Utility Methods

@@ -239,6 +239,114 @@ router.get('/proof/:proofId/validate', async (req, res) => {
         });
     }
 });
+
+/**
+ * GET /api/zkp/verify-license-by-proof-id/:proofId
+ * Verify agency license using proof ID (Worker endpoint)
+ */
+router.get('/verify-license-by-proof-id/:proofId', auth_1.authenticateToken, async (req, res) => {
+    try {
+        // Check if user is a worker
+        if (req.user?.role !== 'Worker') {
+            return res.status(403).json({
+                error: 'Only workers can verify agency licenses'
+            });
+        }
+
+        const { proofId } = req.params;
+        if (!proofId) {
+            return res.status(400).json({
+                error: 'Proof ID is required'
+            });
+        }
+
+        // Get proof details and verify
+        const verificationResult = await zkpService_1.zkpService.verifyLicenseByProofId(proofId);
+        
+        if (!verificationResult.exists) {
+            return res.status(404).json({
+                error: 'Proof not found',
+                proof_id: proofId
+            });
+        }
+
+        res.json({
+            proof_id: proofId,
+            is_valid: verificationResult.isValid,
+            agency_info: verificationResult.agencyInfo,
+            verification_details: {
+                verified_at: verificationResult.verifiedAt,
+                expires_at: verificationResult.expiresAt,
+                circuit_type: verificationResult.circuitType
+            },
+            message: verificationResult.isValid ? 
+                'Agency license is valid and verified' : 
+                'Agency license verification failed',
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        console.error('Error verifying license by proof ID:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+/**
+ * POST /api/zkp/verify-license-by-proof-id
+ * Alternative POST endpoint for verifying license by proof ID (Worker endpoint)
+ */
+router.post('/verify-license-by-proof-id', auth_1.authenticateToken, async (req, res) => {
+    try {
+        // Check if user is a worker
+        if (req.user?.role !== 'Worker') {
+            return res.status(403).json({
+                error: 'Only workers can verify agency licenses'
+            });
+        }
+
+        const { proofId } = req.body;
+        if (!proofId) {
+            return res.status(400).json({
+                error: 'proofId is required in request body'
+            });
+        }
+
+        // Get proof details and verify
+        const verificationResult = await zkpService_1.zkpService.verifyLicenseByProofId(proofId);
+        
+        if (!verificationResult.exists) {
+            return res.status(404).json({
+                error: 'Proof not found',
+                proof_id: proofId
+            });
+        }
+
+        res.json({
+            proof_id: proofId,
+            is_valid: verificationResult.isValid,
+            agency_info: verificationResult.agencyInfo,
+            verification_details: {
+                verified_at: verificationResult.verifiedAt,
+                expires_at: verificationResult.expiresAt,
+                circuit_type: verificationResult.circuitType
+            },
+            message: verificationResult.isValid ? 
+                'Agency license is valid and verified' : 
+                'Agency license verification failed',
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        console.error('Error verifying license by proof ID:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
 /**
  * POST /api/zkp/initialize
  * Initialize the ZKP system with sample data (Development only)

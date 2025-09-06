@@ -274,6 +274,110 @@ class ZKPService {
             return false;
         }
     }
+
+    /**
+     * Verify agency license using proof ID (for workers)
+     * @param proofId - The proof ID
+     * @returns Promise<VerificationResult>
+     */
+    async verifyLicenseByProofId(proofId) {
+        try {
+            console.log(`🔍 Verifying license by proof ID: ${proofId}`);
+
+            // Get proof details from database
+            const { data: proofData, error: proofError } = await supabase_1.supabase
+                .from('zkp_license_proofs')
+                .select(`
+                    *,
+                    users!zkp_license_proofs_agency_id_fkey (
+                        id,
+                        name,
+                        email,
+                        blockchain_address
+                    )
+                `)
+                .eq('id', proofId)
+                .single();
+
+            if (proofError || !proofData) {
+                console.log('Proof not found:', proofId);
+                return {
+                    exists: false,
+                    isValid: false,
+                    agencyInfo: null,
+                    verifiedAt: null,
+                    expiresAt: null,
+                    circuitType: null
+                };
+            }
+
+            // Check if proof has expired
+            const now = new Date();
+            const expiresAt = new Date(proofData.expires_at);
+            const isExpired = now > expiresAt;
+
+            if (isExpired) {
+                console.log('Proof has expired:', proofId);
+                return {
+                    exists: true,
+                    isValid: false,
+                    agencyInfo: {
+                        name: proofData.users?.name || 'Unknown Agency',
+                        email: proofData.users?.email || 'Unknown Email',
+                        blockchain_address: proofData.agency_address
+                    },
+                    verifiedAt: proofData.verified_at,
+                    expiresAt: proofData.expires_at,
+                    circuitType: proofData.circuit_type,
+                    error: 'Proof has expired'
+                };
+            }
+
+            // Verify the actual ZKP proof
+            let zkpVerificationResult = false;
+            try {
+                const proof = JSON.parse(proofData.proof_data);
+                const publicSignals = JSON.parse(proofData.public_signals);
+                zkpVerificationResult = await this.verifyLicenseProof(proof, publicSignals);
+            } catch (zkpError) {
+                console.error('Error verifying ZKP proof:', zkpError);
+                zkpVerificationResult = false;
+            }
+
+            // Final validation result
+            const isValid = proofData.is_valid && !isExpired && zkpVerificationResult;
+
+            console.log(`✅ License verification result for ${proofId}: ${isValid}`);
+
+            return {
+                exists: true,
+                isValid,
+                agencyInfo: {
+                    name: proofData.users?.name || 'Unknown Agency',
+                    email: proofData.users?.email || 'Unknown Email',
+                    blockchain_address: proofData.agency_address,
+                    license_verified: isValid
+                },
+                verifiedAt: proofData.verified_at,
+                expiresAt: proofData.expires_at,
+                circuitType: proofData.circuit_type,
+                zkpVerified: zkpVerificationResult,
+                expired: isExpired
+            };
+
+        } catch (error) {
+            console.error('❌ Error verifying license by proof ID:', error);
+            return {
+                exists: false,
+                isValid: false,
+                agencyInfo: null,
+                verifiedAt: null,
+                expiresAt: null,
+                circuitType: null,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            };
+        }
+    }
     /**
      * Initialize the ZKP system with sample data
      * @param regulatorId - The regulator's user ID (optional, for RLS compliance)

@@ -12,6 +12,8 @@ import {
   Award,
   Key,
   CheckCircle,
+  Link2,
+  DollarSign,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,9 @@ const navItems = [
   { href: "/r/documents", label: "Document Review", icon: FileCheck },
   { href: "/r/verified-documents", label: "Verified Documents", icon: CheckCircle },
   { href: "/r/trust-scores", label: "Trust Scores", icon: Award },
+  { href: "/r/blockchain", label: "Blockchain Management", icon: Link2 },
+  { href: "/r/escrow", label: "Escrow Oversight", icon: DollarSign },
+  { href: "/r/contracts", label: "Contract Oversight", icon: FileCheck },
   { href: "/r/licenses", label: "License Management", icon: Key },
   { href: "/r/users", label: "User Management", icon: Users },
   { href: "/r/settings", label: "Settings", icon: Settings },

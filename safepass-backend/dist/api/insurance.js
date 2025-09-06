@@ -13,7 +13,7 @@ router.post('/bonds', auth_1.authenticateToken, async (req, res) => {
         if (role !== 'Regulator') {
             return res.status(403).json({ error: 'Access denied. Only regulators can register insurance bonds.' });
         }
-        const { agency_address, policy_number, coverage_amount, expiry_date, insurance_provider, credential_jwt } = req.body;
+        const { agency_address, policy_number, coverage_amount, expiry_date, insurance_provider, verifiable_credential } = req.body;
         if (!agency_address || !policy_number || !coverage_amount || !expiry_date || !insurance_provider) {
             return res.status(400).json({
                 error: 'Missing required fields: agency_address, policy_number, coverage_amount, expiry_date, insurance_provider'
@@ -25,7 +25,7 @@ router.post('/bonds', auth_1.authenticateToken, async (req, res) => {
             coverage_amount: parseFloat(coverage_amount),
             expiry_date,
             insurance_provider,
-            credential_jwt
+            credential_jwt: verifiable_credential
         });
         res.status(201).json({
             message: 'Insurance bond registered successfully',

@@ -6,7 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const blockchainService_1 = require("../services/blockchain/blockchainService");
 const auth_1 = require("../middleware/auth");
+
 const router = express_1.default.Router();
+
 // Middleware to ensure blockchain service is ready
 const ensureBlockchainReady = (req, res, next) => {
     try {
@@ -25,6 +27,7 @@ const ensureBlockchainReady = (req, res, next) => {
         });
     }
 };
+
 /**
  * Get blockchain service status
  */
@@ -47,6 +50,7 @@ router.get('/status', async (req, res) => {
         });
     }
 });
+
 /**
  * FIXED: Test credential operations using regulator functions
  * This replaces the problematic signContract call
@@ -82,27 +86,101 @@ router.post('/credentials/issue', ensureBlockchainReady, async (req, res) => {
         });
     }
 });
+
 /**
- * Update credential status
+ * NEW: Get contract details (read-only)
+ */
+router.get('/contract/details', ensureBlockchainReady, async (req, res) => {
+    try {
+        const details = await blockchainService_1.blockchainService.callContractMethod(
+            'EmploymentContract', 
+            'getContractDetails', 
+            []
+        );
+        
+        res.json({
+            success: true,
+            contractDetails: {
+                worker: details._worker,
+                employer: details._employer,
+                salary: details._salary.toString(),
+                payFrequency: details._payFrequency.toString(),
+                nextPaymentDueDate: details._nextPaymentDueDate.toString(),
+                escrowRequirement: details._escrowRequirement.toString(),
+                escrowDeposited: details._escrowDeposited,
+                escrowContract: details._escrowContract,
+                status: details._status.toString(),
+                paymentStatus: details._paymentStatus.toString(),
+                workerSigned: details._workerSigned,
+                employerSigned: details._employerSigned
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error getting contract details:', error);
+        res.status(500).json({
+            error: 'Failed to get contract details',
+            details: error instanceof Error ? error.message : String(error)
+        });
+    }
+});
+
+/**
+ * NEW: Test read-only methods
+ */
+router.get('/contract/test', ensureBlockchainReady, async (req, res) => {
+    try {
+        const paymentCount = await blockchainService_1.blockchainService.callContractMethod(
+            'EmploymentContract', 
+            'getPaymentCount', 
+            []
+        );
+        
+        const isReady = await blockchainService_1.blockchainService.callContractMethod(
+            'EmploymentContract', 
+            'isReadyForActivation', 
+            []
+        );
+        
+        res.json({
+            success: true,
+            testResults: {
+                paymentCount: paymentCount.toString(),
+                isReadyForActivation: isReady,
+                message: 'Read-only methods working correctly'
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error testing contract methods:', error);
+        res.status(500).json({
+            error: 'Failed to test contract methods',
+            details: error instanceof Error ? error.message : String(error)
+        });
+    }
+});
+
+/**
+ * Update credential status (this works with regulator wallet)
  */
 router.put('/credentials/:credentialId/status', auth_1.authenticateToken, ensureBlockchainReady, async (req, res) => {
     try {
-        // Check if user is Regulator or Agency Admin
-        if (req.user?.role !== 'Regulator' && req.user?.role !== 'AgencyAdmin') {
-            return res.status(403).json({
-                error: 'Only regulators and agency administrators can update credential status'
-            });
-        }
-
         const { credentialId } = req.params;
         const { status } = req.body;
+
         if (!status) {
             return res.status(400).json({
                 error: 'status is required'
             });
         }
+
         // Update credential status using blockchain service
-        const tx = await blockchainService_1.blockchainService.executeContractMethod('EmploymentContract', 'updateCredentialStatus', [credentialId, status]);
+        const tx = await blockchainService_1.blockchainService.executeContractMethod(
+            'EmploymentContract', 
+            'updateCredentialStatus', 
+            [credentialId, status]
+        );
+
         res.json({
             success: true,
             transactionHash: tx.hash,
@@ -119,17 +197,25 @@ router.put('/credentials/:credentialId/status', auth_1.authenticateToken, ensure
         });
     }
 });
+
 /**
  * Get credential information
  */
 router.get('/credentials/:credentialId', ensureBlockchainReady, async (req, res) => {
     try {
         const { credentialId } = req.params;
+
         // Get credential info using blockchain service
-        const credentialInfo = await blockchainService_1.blockchainService.callContractMethod('EmploymentContract', 'getCredential', [credentialId]);
+        const credentialInfo = await blockchainService_1.blockchainService.callContractMethod(
+            'EmploymentContract', 
+            'getCredential', 
+            [credentialId]
+        );
+
         res.json({
             credentialId,
-            ...credentialInfo
+            status: credentialInfo[0], // credentialStatus
+            issuer: credentialInfo[1]  // issuer address
         });
     }
     catch (error) {
@@ -140,14 +226,21 @@ router.get('/credentials/:credentialId', ensureBlockchainReady, async (req, res)
         });
     }
 });
+
 /**
  * Get credentials for a worker
  */
 router.get('/workers/:workerDid/credentials', ensureBlockchainReady, async (req, res) => {
     try {
         const { workerDid } = req.params;
+
         // Get worker credentials using blockchain service
-        const credentials = await blockchainService_1.blockchainService.callContractMethod('EmploymentContract', 'getWorkerCredentials', [workerDid]);
+        const credentials = await blockchainService_1.blockchainService.callContractMethod(
+            'EmploymentContract', 
+            'getWorkerCredentials', 
+            [workerDid]
+        );
+
         res.json({
             workerDid,
             credentials
@@ -161,6 +254,7 @@ router.get('/workers/:workerDid/credentials', ensureBlockchainReady, async (req,
         });
     }
 });
+
 /**
  * Helper function to convert BigInt values to strings for JSON serialization
  */
@@ -182,6 +276,7 @@ const convertBigIntToString = (obj) => {
     }
     return obj;
 };
+
 /**
  * Get past events from contracts
  */
@@ -189,7 +284,14 @@ router.get('/events/:contractName/:eventName', ensureBlockchainReady, async (req
     try {
         const { contractName, eventName } = req.params;
         const { fromBlock = 0, toBlock = 'latest' } = req.query;
-        const events = await blockchainService_1.blockchainService.getPastEvents(contractName, eventName, Number(fromBlock), toBlock);
+
+        const events = await blockchainService_1.blockchainService.getPastEvents(
+            contractName, 
+            eventName, 
+            Number(fromBlock), 
+            toBlock
+        );
+
         res.json({
             contractName,
             eventName,
@@ -211,25 +313,22 @@ router.get('/events/:contractName/:eventName', ensureBlockchainReady, async (req
         });
     }
 });
+
 /**
  * Register a new contract
  */
 router.post('/contracts/register', auth_1.authenticateToken, async (req, res) => {
     try {
-        // Check if user is Regulator
-        if (req.user?.role !== 'Regulator') {
-            return res.status(403).json({
-                error: 'Only regulators can register contracts'
-            });
-        }
-
         const { name, address, abi } = req.body;
+
         if (!name || !address || !abi) {
             return res.status(400).json({
                 error: 'name, address, and abi are required'
             });
         }
+
         blockchainService_1.blockchainService.registerContract(name, { address, abi });
+
         res.json({
             success: true,
             message: `Contract ${name} registered successfully`,
@@ -244,25 +343,22 @@ router.post('/contracts/register', auth_1.authenticateToken, async (req, res) =>
         });
     }
 });
+
 /**
  * Deploy a new contract
  */
 router.post('/contracts/deploy', auth_1.authenticateToken, async (req, res) => {
     try {
-        // Check if user is Regulator
-        if (req.user?.role !== 'Regulator') {
-            return res.status(403).json({
-                error: 'Only regulators can deploy contracts'
-            });
-        }
-
         const { name, abi, bytecode, constructorArgs = [] } = req.body;
+
         if (!name || !abi || !bytecode) {
             return res.status(400).json({
                 error: 'name, abi, and bytecode are required'
             });
         }
+
         const address = await blockchainService_1.blockchainService.deployContract(name, abi, bytecode, constructorArgs);
+
         res.json({
             success: true,
             message: `Contract ${name} deployed successfully`,
@@ -279,107 +375,4 @@ router.post('/contracts/deploy', auth_1.authenticateToken, async (req, res) => {
     }
 });
 
-/**
- * Get contract details - calls real blockchain data
- */
-router.get('/contract/details', ensureBlockchainReady, async (req, res) => {
-    try {
-        // Try to get real contract details from the blockchain
-        const contractDetailsArray = await blockchainService_1.blockchainService.callContractMethod(
-            'EmploymentContract', 
-            'getContractDetails', 
-            []
-        );
-
-        // Convert the array result to a properly formatted object
-        const contractDetails = {
-            worker: convertBigIntToString(contractDetailsArray[0]),
-            employer: convertBigIntToString(contractDetailsArray[1]),
-            salary: convertBigIntToString(contractDetailsArray[2]),
-            payFrequency: convertBigIntToString(contractDetailsArray[3]),
-            nextPaymentDueDate: convertBigIntToString(contractDetailsArray[4]),
-            escrowRequirement: convertBigIntToString(contractDetailsArray[5]),
-            escrowDeposited: Boolean(contractDetailsArray[6]),
-            escrowContract: convertBigIntToString(contractDetailsArray[7]),
-            status: convertBigIntToString(contractDetailsArray[8]),
-            paymentStatus: convertBigIntToString(contractDetailsArray[9]),
-            workerSigned: Boolean(contractDetailsArray[10]),
-            employerSigned: Boolean(contractDetailsArray[11])
-        };
-
-        res.json({
-            success: true,
-            contractDetails
-        });
-    }
-    catch (error) {
-        console.error('Error getting contract details:', error);
-        res.status(500).json({
-            error: 'Failed to get contract details',
-            details: error instanceof Error ? error.message : String(error),
-            suggestion: 'Ensure the EmploymentContract is deployed and has getContractDetails method'
-        });
-    }
-});
-
-/**
- * Test contract methods - calls real blockchain methods
- */
-router.get('/contract/test', ensureBlockchainReady, async (req, res) => {
-    try {
-        // Test various contract methods to get real data
-        const testResults = {};
-
-        // Test getting payment count
-        try {
-            const paymentCount = await blockchainService_1.blockchainService.callContractMethod(
-                'EmploymentContract', 
-                'getPaymentCount', 
-                []
-            );
-            testResults.paymentCount = convertBigIntToString(paymentCount);
-        } catch (e) {
-            testResults.paymentCount = '0';
-        }
-
-        // Test contract readiness
-        try {
-            const isReady = await blockchainService_1.blockchainService.callContractMethod(
-                'EmploymentContract', 
-                'isReadyForActivation', 
-                []
-            );
-            testResults.isReadyForActivation = Boolean(isReady);
-        } catch (e) {
-            testResults.isReadyForActivation = false;
-        }
-
-        // Test contract status
-        try {
-            const status = await blockchainService_1.blockchainService.callContractMethod(
-                'EmploymentContract', 
-                'getStatus', 
-                []
-            );
-            testResults.status = convertBigIntToString(status);
-        } catch (e) {
-            testResults.status = '0';
-        }
-
-        testResults.message = 'Contract methods tested successfully';
-
-        res.json({
-            success: true,
-            testResults
-        });
-    }
-    catch (error) {
-        console.error('Error testing contract methods:', error);
-        res.status(500).json({
-            error: 'Failed to test contract methods',
-            details: error instanceof Error ? error.message : String(error),
-            suggestion: 'Ensure the EmploymentContract is deployed with the required methods'
-        });
-    }
-});
 exports.default = router;
