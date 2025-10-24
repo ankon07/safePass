@@ -1,6 +1,7 @@
 import express from 'express';
 import { blockchainService } from '../services/blockchain/blockchainService';
 import { authenticateToken } from '../middleware/auth';
+import { cache, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ const ensureBlockchainReady = (req: express.Request, res: express.Response, next
 /**
  * Get blockchain service status
  */
-router.get('/status', async (req, res) => {
+router.get('/status', cache({ ttl: CACHE_TTL.SHORT_TERM }), async (req, res) => {
   try {
     const balance = await blockchainService.getBalance();
     const blockNumber = await blockchainService.getCurrentBlockNumber();
@@ -59,6 +60,9 @@ router.post('/credentials/issue', ensureBlockchainReady, async (req, res) => {
       'signContract',
       []
     );
+
+    // Invalidate blockchain-related cache
+    cacheInvalidation.clearAll();
 
     res.json({
       success: true,
@@ -97,6 +101,9 @@ router.put('/credentials/:credentialId/status', authenticateToken, ensureBlockch
       [credentialId, status]
     );
 
+    // Invalidate blockchain-related cache
+    cacheInvalidation.clearAll();
+
     res.json({
       success: true,
       transactionHash: tx.hash,
@@ -117,7 +124,10 @@ router.put('/credentials/:credentialId/status', authenticateToken, ensureBlockch
 /**
  * Get credential information
  */
-router.get('/credentials/:credentialId', ensureBlockchainReady, async (req, res) => {
+router.get('/credentials/:credentialId', ensureBlockchainReady, cache({ 
+  ttl: CACHE_TTL.LOOKUP_DATA,
+  keyGenerator: (req) => `blockchain:credential:${req.params.credentialId}`
+}), async (req, res) => {
   try {
     const { credentialId } = req.params;
 
@@ -145,7 +155,10 @@ router.get('/credentials/:credentialId', ensureBlockchainReady, async (req, res)
 /**
  * Get credentials for a worker
  */
-router.get('/workers/:workerDid/credentials', ensureBlockchainReady, async (req, res) => {
+router.get('/workers/:workerDid/credentials', ensureBlockchainReady, cache({
+  ttl: CACHE_TTL.LOOKUP_DATA,
+  keyGenerator: (req) => `blockchain:worker:credentials:${req.params.workerDid}`
+}), async (req, res) => {
   try {
     const { workerDid } = req.params;
 
@@ -193,7 +206,10 @@ const convertBigIntToString = (obj: any): any => {
 /**
  * Get past events from contracts
  */
-router.get('/events/:contractName/:eventName', ensureBlockchainReady, async (req, res) => {
+router.get('/events/:contractName/:eventName', ensureBlockchainReady, cache({
+  ttl: CACHE_TTL.SHORT_TERM,
+  keyGenerator: (req) => `blockchain:events:${req.params.contractName}:${req.params.eventName}:${JSON.stringify(req.query)}`
+}), async (req, res) => {
   try {
     const { contractName, eventName } = req.params;
     const { fromBlock = 0, toBlock = 'latest' } = req.query;
@@ -242,6 +258,9 @@ router.post('/contracts/register', authenticateToken, async (req, res) => {
 
     blockchainService.registerContract(name, { address, abi });
 
+    // Invalidate blockchain-related cache
+    cacheInvalidation.clearAll();
+
     res.json({
       success: true,
       message: `Contract ${name} registered successfully`,
@@ -271,6 +290,9 @@ router.post('/contracts/deploy', authenticateToken, async (req, res) => {
     }
 
     const address = await blockchainService.deployContract(name, abi, bytecode, constructorArgs);
+
+    // Invalidate blockchain-related cache
+    cacheInvalidation.clearAll();
 
     res.json({
       success: true,

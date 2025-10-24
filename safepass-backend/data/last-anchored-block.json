@@ -1,7 +1,7 @@
 {
-  "lastAnchoredBlock": 23685,
-  "lastAnchoredAt": "2025-08-29T08:54:50.176Z",
-  "lastBatchId": "2",
-  "lastMerkleRoot": "0xf553297da26db8a910fcda23f4ba7651e21e8f8da15d4bb64e0c5fc915973ac9",
+  "lastAnchoredBlock": 46476,
+  "lastAnchoredAt": "2025-09-05T23:08:41.094Z",
+  "lastBatchId": "3",
+  "lastMerkleRoot": "0xc8b5e18e6053ef97c856252a0338e6817275a84d0f7413cbd8768077ad3ced0a",
   "sepoliaContract": "0x7Fe9E3b9c1E96B96A7eDbF4b7Aa4552e059B0DbC"
 }

@@ -1,11 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { cache, cacheKeys, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
 
 // GET /api/jobs - Get all active jobs (public endpoint with optional filters)
-router.get('/jobs', async (req: Request, res: Response) => {
+router.get('/jobs', 
+  cache({
+    ttl: CACHE_TTL.DOCUMENT_LIST,
+    keyGenerator: cacheKeys.jobsList
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { page = 1, limit = 10, country, category } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
@@ -90,7 +96,12 @@ router.get('/jobs', async (req: Request, res: Response) => {
 });
 
 // GET /api/jobs/:id - Get job by ID (public endpoint)
-router.get('/jobs/:id', async (req: Request, res: Response) => {
+router.get('/jobs/:id', 
+  cache({
+    ttl: CACHE_TTL.LOOKUP_DATA,
+    keyGenerator: (req: Request) => `job:${req.params.id}`
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -145,7 +156,14 @@ router.get('/jobs/:id', async (req: Request, res: Response) => {
 });
 
 // GET /api/agency/jobs - Get agency's own jobs (Agency Admin only)
-router.get('/agency/jobs', authenticateToken, requireRole(['AgencyAdmin']), async (req: Request, res: Response) => {
+router.get('/agency/jobs', 
+  authenticateToken, 
+  requireRole(['AgencyAdmin']),
+  cache({
+    ttl: CACHE_TTL.DOCUMENT_LIST,
+    keyGenerator: (req: Request) => `agency:jobs:${req.user?.id}`
+  }),
+  async (req: Request, res: Response) => {
   try {
     const currentUser = req.user!;
 
@@ -258,6 +276,9 @@ router.post('/agency/jobs', authenticateToken, requireRole(['AgencyAdmin']), asy
       return res.status(500).json({ error: 'Failed to create job' });
     }
 
+    // Invalidate job caches after creation
+    cacheInvalidation.invalidateJobs();
+
     // Transform the response
     const transformedJob = {
       id: job.id,
@@ -356,6 +377,9 @@ router.put('/agency/jobs/:id', authenticateToken, requireRole(['AgencyAdmin']), 
       return res.status(500).json({ error: 'Failed to update job' });
     }
 
+    // Invalidate job caches after update
+    cacheInvalidation.invalidateJobs();
+
     // Transform the response
     const transformedJob = {
       id: job.id,
@@ -426,6 +450,9 @@ router.delete('/agency/jobs/:id', authenticateToken, requireRole(['AgencyAdmin']
       console.error('Database delete error:', error);
       return res.status(500).json({ error: 'Failed to delete job' });
     }
+
+    // Invalidate job caches after deletion
+    cacheInvalidation.invalidateJobs();
 
     res.status(200).json({
       message: 'Job deleted successfully'

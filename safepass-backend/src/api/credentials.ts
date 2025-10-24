@@ -2,8 +2,19 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { authenticateToken } from '../middleware/auth';
 import { getAgent } from '../services/identityService';
+import { cache, cacheKeys, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
+
+// Add requireRole middleware import
+const requireRole = (roles: string[]) => {
+    return (req: any, res: any, next: any) => {
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        next();
+    };
+};
 
 
 /**
@@ -125,6 +136,13 @@ router.post('/regulator/issue-credential', authenticateToken, async (req: Reques
             });
         }
 
+        // Get worker ID from document upload for cache invalidation
+        const workerId = documentUpload.user_id;
+        
+        // Invalidate relevant caches
+        cacheInvalidation.invalidateCredentials(workerId);
+        cacheInvalidation.invalidateDocuments(workerId);
+
         res.status(201).json({
             message: 'Verifiable credential issued successfully.',
             data: {
@@ -207,6 +225,12 @@ router.post('/regulator/reject-document', authenticateToken, async (req: Request
             });
         }
 
+        // Get worker ID from document upload for cache invalidation
+        const workerId = documentUpload.user_id;
+        
+        // Invalidate relevant caches
+        cacheInvalidation.invalidateDocuments(workerId);
+
         res.json({
             message: 'Document rejected successfully.',
             data: {
@@ -229,12 +253,15 @@ router.post('/regulator/reject-document', authenticateToken, async (req: Request
  * GET /api/worker/me/credentials
  * Worker retrieves their verifiable credentials
  */
-router.get('/worker/me/credentials', authenticateToken, async (req: Request, res: Response) => {
+router.get('/worker/me/credentials', authenticateToken, requireRole(['Worker']), cache({ 
+  ttl: CACHE_TTL.USER_PROFILE, 
+  keyGenerator: (req) => cacheKeys.userCredentials(req.user.id) 
+}), async (req: Request, res: Response) => {
     try {
-        // Verify user is a worker
-        if (!req.user || req.user.role !== 'Worker') {
-            return res.status(403).json({ 
-                error: 'Access denied. Only workers can view their credentials.' 
+        // User verification is handled by requireRole middleware
+        if (!req.user) {
+            return res.status(401).json({ 
+                error: 'Authentication required.' 
             });
         }
 
@@ -287,7 +314,10 @@ router.get('/worker/me/credentials', authenticateToken, async (req: Request, res
  * GET /api/credentials/verify/:jwt
  * Verify a verifiable credential JWT (public endpoint)
  */
-router.get('/credentials/verify/:jwt', async (req: Request, res: Response) => {
+router.get('/credentials/verify/:jwt', cache({ 
+  ttl: CACHE_TTL.LOOKUP_DATA, 
+  keyGenerator: (req) => cacheKeys.credentialVerification(req.params.jwt) 
+}), async (req: Request, res: Response) => {
     try {
         const { jwt } = req.params;
 

@@ -837,4 +837,4 @@ function RegulatorBlockchainPage() {
   );
 }
 
-export default withAuth(RegulatorBlockchainPage, ["regulator"]);
+export default withAuth(RegulatorBlockchainPage, ["Regulator"]);

@@ -3,6 +3,7 @@ import multer from 'multer';
 import { supabase } from '../config/supabase';
 import { authenticateToken } from '../middleware/auth';
 import { ipfsService } from '../services/ipfsService';
+import { cache, cacheKeys, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
 
@@ -128,6 +129,9 @@ router.post('/worker/documents', authenticateToken, (req: Request, res: Response
             });
         }
 
+        // Invalidate document caches after upload
+        cacheInvalidation.invalidateDocuments(req.user.id);
+
         res.status(202).json({
             message: 'Document uploaded successfully and is awaiting verification.',
             data: {
@@ -154,7 +158,13 @@ router.post('/worker/documents', authenticateToken, (req: Request, res: Response
  * GET /api/worker/documents
  * Worker retrieves their uploaded documents
  */
-router.get('/worker/documents', authenticateToken, async (req: Request, res: Response) => {
+router.get('/worker/documents', 
+  authenticateToken,
+  cache({
+    ttl: CACHE_TTL.DOCUMENT_LIST,
+    keyGenerator: cacheKeys.documentsWorker
+  }),
+  async (req: Request, res: Response) => {
     try {
         // Verify user is a worker
         if (!req.user || req.user.role !== 'Worker') {
@@ -202,7 +212,13 @@ router.get('/worker/documents', authenticateToken, async (req: Request, res: Res
  * GET /api/regulator/documents/verified
  * Regulator retrieves verified documents with complete details including worker info and credentials
  */
-router.get('/regulator/documents/verified', authenticateToken, async (req: Request, res: Response) => {
+router.get('/regulator/documents/verified', 
+  authenticateToken,
+  cache({
+    ttl: CACHE_TTL.DOCUMENT_LIST,
+    keyGenerator: cacheKeys.documentsVerified
+  }),
+  async (req: Request, res: Response) => {
     console.log('📋 Verified documents endpoint hit!');
     
     try {
@@ -303,7 +319,13 @@ router.get('/regulator/documents/verified', authenticateToken, async (req: Reque
  * GET /api/regulator/documents/pending
  * Regulator retrieves pending documents for review
  */
-router.get('/regulator/documents/pending', authenticateToken, async (req: Request, res: Response) => {
+router.get('/regulator/documents/pending', 
+  authenticateToken,
+  cache({
+    ttl: CACHE_TTL.DOCUMENT_LIST,
+    keyGenerator: cacheKeys.documentsPending
+  }),
+  async (req: Request, res: Response) => {
     try {
         // Verify user is a regulator
         if (!req.user || req.user.role !== 'Regulator') {
@@ -581,6 +603,9 @@ router.post('/agency/documents/approve', authenticateToken, async (req: Request,
             });
         }
 
+        // Invalidate document caches after approval
+        cacheInvalidation.invalidateDocuments();
+
         res.json({
             message: 'Document approved successfully.',
             data: {
@@ -646,6 +671,9 @@ router.post('/agency/documents/reject', authenticateToken, async (req: Request, 
                 error: 'Document not found or already processed.' 
             });
         }
+
+        // Invalidate document caches after rejection
+        cacheInvalidation.invalidateDocuments();
 
         res.json({
             message: 'Document rejected successfully.',

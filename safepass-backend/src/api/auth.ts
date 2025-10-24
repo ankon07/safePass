@@ -5,6 +5,7 @@ import { supabase, UserCreateInput, UserPublicProfile } from '../config/supabase
 import { config } from '../config/environment';
 import { createUserDID, encryptPrivateKey } from '../services/identityService';
 import { authenticateToken } from '../middleware/auth';
+import { cache, cacheInvalidation } from '../middleware/cache';
 
 const router = Router();
 
@@ -179,7 +180,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // GET /api/auth/me (Protected route)
-router.get('/me', authenticateToken, async (req: Request, res: Response) => {
+router.get('/me', authenticateToken, cache({ ttl: 10 * 60 * 1000, keyGenerator: (req) => `user_profile_${req.user?.id}` }), async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' });

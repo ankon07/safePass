@@ -1,11 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { supabase, UserPublicProfile } from '../config/supabase';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { cache, cacheKeys, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
 
 // GET /api/users - Get all users (Admin/Regulator only)
-router.get('/', authenticateToken, requireRole(['AgencyAdmin', 'Regulator']), async (req: Request, res: Response) => {
+router.get('/', 
+  authenticateToken, 
+  requireRole(['AgencyAdmin', 'Regulator']),
+  cache({
+    ttl: CACHE_TTL.USER_LIST,
+    keyGenerator: cacheKeys.userList
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { data: users, error } = await supabase
       .from('users')
@@ -38,7 +46,14 @@ router.get('/', authenticateToken, requireRole(['AgencyAdmin', 'Regulator']), as
 });
 
 // GET /api/users/workers - Get all workers (Agency Admin/Regulator only)
-router.get('/workers', authenticateToken, requireRole(['AgencyAdmin', 'Regulator']), async (req: Request, res: Response) => {
+router.get('/workers', 
+  authenticateToken, 
+  requireRole(['AgencyAdmin', 'Regulator']),
+  cache({
+    ttl: CACHE_TTL.USER_LIST,
+    keyGenerator: cacheKeys.workerList
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { data: workers, error } = await supabase
       .from('users')
@@ -72,7 +87,13 @@ router.get('/workers', authenticateToken, requireRole(['AgencyAdmin', 'Regulator
 });
 
 // GET /api/users/:id - Get user by ID (Admin/Regulator or own profile)
-router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:id', 
+  authenticateToken,
+  cache({
+    ttl: CACHE_TTL.USER_PROFILE,
+    keyGenerator: (req: Request) => `user:profile:${req.params.id}:${req.user?.id}`
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const currentUser = req.user!;
@@ -112,7 +133,14 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // GET /api/users/stats/overview - Get user statistics (Admin/Regulator only)
-router.get('/stats/overview', authenticateToken, requireRole(['AgencyAdmin', 'Regulator']), async (req: Request, res: Response) => {
+router.get('/stats/overview', 
+  authenticateToken, 
+  requireRole(['AgencyAdmin', 'Regulator']),
+  cache({
+    ttl: CACHE_TTL.STATISTICS,
+    keyGenerator: cacheKeys.userStats
+  }),
+  async (req: Request, res: Response) => {
   try {
     // Get total counts by role
     const { data: stats, error } = await supabase

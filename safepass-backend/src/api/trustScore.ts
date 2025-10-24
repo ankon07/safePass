@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { trustScoreService } from '../services/trustScoreService';
 import { zkpService } from '../services/zkpService';
+import { cache, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = express.Router();
 
@@ -9,7 +10,10 @@ const router = express.Router();
  * GET /api/trust-scores/agencies/:address
  * Get trust score for a specific agency
  */
-router.get('/agencies/:address', async (req, res) => {
+router.get('/agencies/:address', cache({ 
+  ttl: CACHE_TTL.LOOKUP_DATA, 
+  keyGenerator: (req) => `trust:scores:agency:${req.params.address}` 
+}), async (req, res) => {
   try {
     const { address } = req.params;
     
@@ -47,7 +51,10 @@ router.get('/agencies/:address', async (req, res) => {
  * GET /api/trust-scores/statistics
  * Get trust score statistics
  */
-router.get('/statistics', async (req, res) => {
+router.get('/statistics', cache({ 
+  ttl: CACHE_TTL.STATISTICS, 
+  keyGenerator: () => 'trust:scores:statistics' 
+}), async (req, res) => {
   try {
     const statistics = await trustScoreService.getTrustScoreStatistics();
     
@@ -75,7 +82,10 @@ router.get('/statistics', async (req, res) => {
  * GET /api/trust-scores/top-agencies
  * Get top agencies by trust score
  */
-router.get('/top-agencies', async (req, res) => {
+router.get('/top-agencies', cache({ 
+  ttl: CACHE_TTL.USER_LIST, 
+  keyGenerator: (req) => `trust:scores:top-agencies:${req.query.limit || 10}` 
+}), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 10;
     
@@ -127,6 +137,9 @@ router.post('/calculate', authenticateToken, async (req, res) => {
       // Calculate for specific agency
       const newScore = await trustScoreService.calculateAgencyScore(agency_address);
       
+      // Invalidate relevant caches
+      cacheInvalidation.invalidateTrustScores();
+      
       res.json({
         message: 'Trust score calculated successfully',
         agency_address,
@@ -137,6 +150,9 @@ router.post('/calculate', authenticateToken, async (req, res) => {
     } else {
       // Calculate for all agencies
       await trustScoreService.calculateAllAgencyScores();
+      
+      // Invalidate relevant caches
+      cacheInvalidation.invalidateTrustScores();
       
       res.json({
         message: 'Trust score calculation initiated for all agencies',
@@ -198,6 +214,9 @@ router.post('/events', authenticateToken, async (req, res) => {
       impact_score: parseInt(impact_score),
       event_data
     });
+
+    // Invalidate relevant caches since events might affect trust scores
+    cacheInvalidation.invalidateTrustScores();
 
     res.json({
       message: 'Trust score event recorded successfully',

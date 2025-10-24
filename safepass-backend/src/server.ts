@@ -13,6 +13,7 @@ import escrowRoutes from './api/escrow';
 import jobsRoutes from './api/jobs';
 import applicationsRoutes from './api/applications';
 import { trustScoreService } from './services/trustScoreService';
+import { cacheStats } from './middleware/cache';
 
 const app = express();
 
@@ -48,6 +49,9 @@ app.get('/health', (req, res) => {
     service: 'SafePass API Gateway',
   });
 });
+
+// Cache statistics endpoint
+app.get('/api/cache/stats', cacheStats);
 
 // API Routes
 app.use('/api/auth', authRoutes);

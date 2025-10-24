@@ -1,11 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { cache, cacheKeys, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
 
 // GET /api/worker/applications - Get worker's own applications (Worker only)
-router.get('/worker/applications', authenticateToken, requireRole(['Worker']), async (req: Request, res: Response) => {
+router.get('/worker/applications', authenticateToken, requireRole(['Worker']), cache({ 
+  ttl: CACHE_TTL.DOCUMENT_LIST, 
+  keyGenerator: (req) => `applications:worker:${req.user?.id}` 
+}), async (req: Request, res: Response) => {
   try {
     const currentUser = req.user!;
 
@@ -169,6 +173,9 @@ router.post('/worker/applications', authenticateToken, requireRole(['Worker']), 
       }
     };
 
+    // Invalidate relevant caches
+    cacheInvalidation.invalidateJobs();
+
     res.status(201).json({
       message: 'Application submitted successfully',
       data: transformedApplication
@@ -181,7 +188,10 @@ router.post('/worker/applications', authenticateToken, requireRole(['Worker']), 
 });
 
 // GET /api/agency/jobs/:jobId/applications - Get applications for a specific job (Agency Admin only)
-router.get('/agency/jobs/:jobId/applications', authenticateToken, requireRole(['AgencyAdmin']), async (req: Request, res: Response) => {
+router.get('/agency/jobs/:jobId/applications', authenticateToken, requireRole(['AgencyAdmin']), cache({ 
+  ttl: CACHE_TTL.DOCUMENT_LIST, 
+  keyGenerator: (req) => `applications:job:${req.params.jobId}:agency:${req.user?.id}` 
+}), async (req: Request, res: Response) => {
   try {
     const currentUser = req.user!;
     const { jobId } = req.params;
@@ -335,6 +345,9 @@ router.put('/agency/applications/:applicationId', authenticateToken, requireRole
       }
     };
 
+    // Invalidate relevant caches
+    cacheInvalidation.invalidateJobs();
+
     res.status(200).json({
       message: 'Application updated successfully',
       data: transformedApplication
@@ -347,7 +360,10 @@ router.put('/agency/applications/:applicationId', authenticateToken, requireRole
 });
 
 // GET /api/applications/:id - Get application by ID (Worker can view own, Agency can view for their jobs)
-router.get('/applications/:id', authenticateToken, async (req: Request, res: Response) => {
+router.get('/applications/:id', authenticateToken, cache({ 
+  ttl: CACHE_TTL.LOOKUP_DATA, 
+  keyGenerator: (req) => `application:${req.params.id}:user:${req.user?.id}` 
+}), async (req: Request, res: Response) => {
   try {
     const currentUser = req.user!;
     const { id } = req.params;

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { insuranceService } from '../services/insuranceService';
+import { cache, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
 
@@ -39,6 +40,9 @@ router.post('/bonds', authenticateToken, async (req: Request, res: Response) => 
       credential_jwt: verifiable_credential
     });
 
+    // Invalidate related cache entries
+    cacheInvalidation.clearAll(); // Clear all insurance-related cache
+
     res.status(201).json({
       message: 'Insurance bond registered successfully',
       data: bond
@@ -52,7 +56,10 @@ router.post('/bonds', authenticateToken, async (req: Request, res: Response) => 
 /**
  * Get insurance bond for an agency
  */
-router.get('/bonds/:agencyAddress', async (req: Request, res: Response) => {
+router.get('/bonds/:agencyAddress', cache({
+  ttl: CACHE_TTL.LOOKUP_DATA,
+  keyGenerator: (req) => `insurance:bond:${req.params.agencyAddress}`
+}), async (req: Request, res: Response) => {
   try {
     const { agencyAddress } = req.params;
 
@@ -75,7 +82,10 @@ router.get('/bonds/:agencyAddress', async (req: Request, res: Response) => {
 /**
  * Verify insurance status for an agency
  */
-router.get('/bonds/:agencyAddress/verify', async (req: Request, res: Response) => {
+router.get('/bonds/:agencyAddress/verify', cache({
+  ttl: CACHE_TTL.SHORT_TERM,
+  keyGenerator: (req) => `insurance:verify:${req.params.agencyAddress}`
+}), async (req: Request, res: Response) => {
   try {
     const { agencyAddress } = req.params;
 
@@ -98,7 +108,10 @@ router.get('/bonds/:agencyAddress/verify', async (req: Request, res: Response) =
 /**
  * Get agencies with expired insurance
  */
-router.get('/expired', authenticateToken, async (req: Request, res: Response) => {
+router.get('/expired', authenticateToken, cache({
+  ttl: CACHE_TTL.DOCUMENT_LIST,
+  keyGenerator: (req) => `insurance:expired:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     
@@ -122,7 +135,10 @@ router.get('/expired', authenticateToken, async (req: Request, res: Response) =>
 /**
  * Get agencies with valid insurance
  */
-router.get('/valid', async (req: Request, res: Response) => {
+router.get('/valid', cache({
+  ttl: CACHE_TTL.USER_LIST,
+  keyGenerator: () => `insurance:valid:all`
+}), async (req: Request, res: Response) => {
   try {
     const validBonds = await insuranceService.getAgenciesWithValidInsurance();
 
@@ -151,6 +167,9 @@ router.post('/bonds/:agencyAddress/deactivate', authenticateToken, async (req: R
     const { agencyAddress } = req.params;
 
     await insuranceService.deactivateInsuranceBond(agencyAddress);
+
+    // Invalidate related cache entries
+    cacheInvalidation.clearAll(); // Clear all insurance-related cache
 
     res.json({
       message: 'Insurance bond deactivated successfully',
@@ -196,6 +215,9 @@ router.post('/claims', authenticateToken, async (req: Request, res: Response) =>
       claim_reason
     });
 
+    // Invalidate related cache entries
+    cacheInvalidation.clearAll(); // Clear all insurance-related cache
+
     res.status(201).json({
       message: 'Insurance claim filed successfully',
       data: claim
@@ -228,6 +250,9 @@ router.put('/claims/:claimId', authenticateToken, async (req: Request, res: Resp
 
     const updatedClaim = await insuranceService.updateClaimStatus(claimId, status, resolution_notes);
 
+    // Invalidate related cache entries
+    cacheInvalidation.clearAll(); // Clear all insurance-related cache
+
     res.json({
       message: 'Claim status updated successfully',
       data: updatedClaim
@@ -241,7 +266,10 @@ router.put('/claims/:claimId', authenticateToken, async (req: Request, res: Resp
 /**
  * Get claims for an agency
  */
-router.get('/claims/:agencyAddress', authenticateToken, async (req: Request, res: Response) => {
+router.get('/claims/:agencyAddress', authenticateToken, cache({
+  ttl: CACHE_TTL.USER_LIST,
+  keyGenerator: (req) => `insurance:claims:agency:${req.params.agencyAddress}:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     const { agencyAddress } = req.params;
@@ -266,7 +294,10 @@ router.get('/claims/:agencyAddress', authenticateToken, async (req: Request, res
 /**
  * Get all pending claims (Regulator only)
  */
-router.get('/claims', authenticateToken, async (req: Request, res: Response) => {
+router.get('/claims', authenticateToken, cache({
+  ttl: CACHE_TTL.DOCUMENT_LIST,
+  keyGenerator: (req) => `insurance:claims:pending:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     
@@ -290,7 +321,10 @@ router.get('/claims', authenticateToken, async (req: Request, res: Response) => 
 /**
  * Check insurance compliance for an agency
  */
-router.get('/compliance/:agencyAddress', authenticateToken, async (req: Request, res: Response) => {
+router.get('/compliance/:agencyAddress', authenticateToken, cache({
+  ttl: CACHE_TTL.SHORT_TERM,
+  keyGenerator: (req) => `insurance:compliance:${req.params.agencyAddress}:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     

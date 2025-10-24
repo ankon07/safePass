@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { escrowService } from '../services/escrowService';
+import { cache, cacheInvalidation, CACHE_TTL } from '../middleware/cache';
 
 const router = Router();
 
@@ -37,6 +38,9 @@ router.post('/deposits', authenticateToken, async (req: Request, res: Response) 
       transaction_hash
     });
 
+    // Invalidate related cache entries
+    cacheInvalidation.clearAll(); // Clear all escrow-related cache
+
     res.status(201).json({
       message: 'Escrow deposit recorded successfully',
       data: deposit
@@ -50,7 +54,10 @@ router.post('/deposits', authenticateToken, async (req: Request, res: Response) 
 /**
  * Get escrow deposit by employment contract address
  */
-router.get('/deposits/:contractAddress', authenticateToken, async (req: Request, res: Response) => {
+router.get('/deposits/:contractAddress', authenticateToken, cache({
+  ttl: CACHE_TTL.LOOKUP_DATA,
+  keyGenerator: (req) => `escrow:deposit:${req.params.contractAddress}`
+}), async (req: Request, res: Response) => {
   try {
     const { contractAddress } = req.params;
 
@@ -73,7 +80,10 @@ router.get('/deposits/:contractAddress', authenticateToken, async (req: Request,
 /**
  * Get employer's escrow deposits
  */
-router.get('/employer/:employerAddress', authenticateToken, async (req: Request, res: Response) => {
+router.get('/employer/:employerAddress', authenticateToken, cache({
+  ttl: CACHE_TTL.USER_LIST,
+  keyGenerator: (req) => `escrow:employer:${req.params.employerAddress}:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     const { employerAddress } = req.params;
@@ -99,7 +109,10 @@ router.get('/employer/:employerAddress', authenticateToken, async (req: Request,
 /**
  * Get worker's escrow deposits
  */
-router.get('/worker/:workerAddress', authenticateToken, async (req: Request, res: Response) => {
+router.get('/worker/:workerAddress', authenticateToken, cache({
+  ttl: CACHE_TTL.USER_LIST,
+  keyGenerator: (req) => `escrow:worker:${req.params.workerAddress}:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     const { workerAddress } = req.params;
@@ -144,6 +157,9 @@ router.put('/deposits/:contractAddress/status', authenticateToken, async (req: R
 
     const updatedDeposit = await escrowService.updateEscrowStatus(contractAddress, status, release_reason);
 
+    // Invalidate related cache entries
+    cacheInvalidation.clearAll(); // Clear all escrow-related cache
+
     res.json({
       message: 'Escrow status updated successfully',
       data: updatedDeposit
@@ -157,7 +173,10 @@ router.put('/deposits/:contractAddress/status', authenticateToken, async (req: R
 /**
  * Get all active escrow deposits (Regulator only)
  */
-router.get('/active', authenticateToken, async (req: Request, res: Response) => {
+router.get('/active', authenticateToken, cache({
+  ttl: CACHE_TTL.DOCUMENT_LIST,
+  keyGenerator: (req) => `escrow:active:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     
@@ -181,7 +200,10 @@ router.get('/active', authenticateToken, async (req: Request, res: Response) => 
 /**
  * Get all disputed escrow deposits (Regulator only)
  */
-router.get('/disputed', authenticateToken, async (req: Request, res: Response) => {
+router.get('/disputed', authenticateToken, cache({
+  ttl: CACHE_TTL.DOCUMENT_LIST,
+  keyGenerator: (req) => `escrow:disputed:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     
@@ -205,7 +227,10 @@ router.get('/disputed', authenticateToken, async (req: Request, res: Response) =
 /**
  * Get escrow statistics (Regulator only)
  */
-router.get('/statistics', authenticateToken, async (req: Request, res: Response) => {
+router.get('/statistics', authenticateToken, cache({
+  ttl: CACHE_TTL.STATISTICS,
+  keyGenerator: (req) => `escrow:statistics:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     
@@ -228,7 +253,10 @@ router.get('/statistics', authenticateToken, async (req: Request, res: Response)
 /**
  * Verify escrow sufficiency for a contract
  */
-router.get('/verify/:contractAddress/:requiredAmount', authenticateToken, async (req: Request, res: Response) => {
+router.get('/verify/:contractAddress/:requiredAmount', authenticateToken, cache({
+  ttl: CACHE_TTL.SHORT_TERM,
+  keyGenerator: (req) => `escrow:verify:${req.params.contractAddress}:${req.params.requiredAmount}`
+}), async (req: Request, res: Response) => {
   try {
     const { contractAddress, requiredAmount } = req.params;
 
@@ -255,7 +283,10 @@ router.get('/verify/:contractAddress/:requiredAmount', authenticateToken, async 
 /**
  * Get employer's total escrowed amount
  */
-router.get('/employer/:employerAddress/total', authenticateToken, async (req: Request, res: Response) => {
+router.get('/employer/:employerAddress/total', authenticateToken, cache({
+  ttl: CACHE_TTL.USER_LIST,
+  keyGenerator: (req) => `escrow:employer:total:${req.params.employerAddress}:${req.user?.role}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     const { employerAddress } = req.params;
@@ -283,7 +314,10 @@ router.get('/employer/:employerAddress/total', authenticateToken, async (req: Re
 /**
  * Get escrows needing attention (old active deposits)
  */
-router.get('/attention', authenticateToken, async (req: Request, res: Response) => {
+router.get('/attention', authenticateToken, cache({
+  ttl: CACHE_TTL.STATISTICS,
+  keyGenerator: (req) => `escrow:attention:${req.user?.role}:${req.query.days || 90}`
+}), async (req: Request, res: Response) => {
   try {
     const { role } = req.user as any;
     
@@ -311,7 +345,10 @@ router.get('/attention', authenticateToken, async (req: Request, res: Response) 
 /**
  * Calculate escrow requirement
  */
-router.post('/calculate-requirement', async (req: Request, res: Response) => {
+router.post('/calculate-requirement', cache({
+  ttl: CACHE_TTL.LOOKUP_DATA,
+  keyGenerator: (req) => `escrow:calculate:${req.body.salary}:${req.body.pay_frequency_days}`
+}), async (req: Request, res: Response) => {
   try {
     const { salary, pay_frequency_days } = req.body;
 
